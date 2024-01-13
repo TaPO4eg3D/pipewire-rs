@@ -31,7 +31,7 @@ struct Opt {
 pub fn main() -> Result<(), pw::Error> {
     pw::init();
 
-    let mainloop = pw::main_loop::MainLoop::new(None)?;
+    let mainloop = pw::main_loop::MainLoopRc::new(None)?;
     let context = pw::context::Context::new(&mainloop)?;
     let core = context.connect(None)?;
 

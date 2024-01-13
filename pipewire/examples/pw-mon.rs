@@ -56,7 +56,7 @@ impl Proxies {
 }
 
 fn monitor(remote: Option<String>) -> Result<()> {
-    let main_loop = pw::main_loop::MainLoop::new(None)?;
+    let main_loop = pw::main_loop::MainLoopRc::new(None)?;
 
     let main_loop_weak = main_loop.downgrade();
     let _sig_int = main_loop.loop_().add_signal_local(Signal::SIGINT, move || {

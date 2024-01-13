@@ -7,7 +7,8 @@ use pw::types::ObjectType;
 fn main() {
     // Initialize library and get the basic structures we need.
     pw::init();
-    let mainloop = pw::main_loop::MainLoop::new(None).expect("Failed to create Pipewire Mainloop");
+    let mainloop =
+        pw::main_loop::MainLoopRc::new(None).expect("Failed to create Pipewire Mainloop");
     let context = pw::context::Context::new(&mainloop).expect("Failed to create Pipewire Context");
     let core = context
         .connect(None)
@@ -69,7 +70,7 @@ fn main() {
 
 /// Do a single roundtrip to process all events.
 /// See the example in roundtrip.rs for more details on this.
-fn do_roundtrip(mainloop: &pw::main_loop::MainLoop, core: &pw::core::Core) {
+fn do_roundtrip(mainloop: &pw::main_loop::MainLoopRc, core: &pw::core::Core) {
     let done = Rc::new(Cell::new(false));
     let done_clone = done.clone();
     let loop_clone = mainloop.clone();

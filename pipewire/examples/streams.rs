@@ -27,7 +27,7 @@ pub fn main() -> Result<(), pw::Error> {
 
     let opt = Opt::parse();
 
-    let mainloop = pw::main_loop::MainLoop::new(None)?;
+    let mainloop = pw::main_loop::MainLoopRc::new(None)?;
     let context = pw::context::Context::new(&mainloop)?;
     let core = context.connect(None)?;
 
