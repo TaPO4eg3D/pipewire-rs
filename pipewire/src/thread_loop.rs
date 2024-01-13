@@ -10,7 +10,7 @@ use std::{
 
 use crate::{
     error::Error,
-    loop_::{IsLoopRc, LoopRef},
+    loop_::{IsLoopRc, Loop},
 };
 
 /// A wrapper around the pipewire threaded loop interface. ThreadLoops are a higher level
@@ -68,10 +68,10 @@ impl ThreadLoop {
         self.inner.ptr.as_ptr()
     }
 
-    pub fn loop_(&self) -> &LoopRef {
+    pub fn loop_(&self) -> &Loop {
         unsafe {
             let thread_loop = pw_sys::pw_thread_loop_get_loop(self.as_raw_ptr());
-            &*(thread_loop.cast::<LoopRef>())
+            &*(thread_loop.cast::<Loop>())
         }
     }
 
@@ -178,8 +178,8 @@ impl ThreadLoop {
 //         because we use an internal Rc to keep the pw_thread_loop containing the pw_loop alive.
 unsafe impl IsLoopRc for ThreadLoop {}
 
-impl std::convert::AsRef<LoopRef> for ThreadLoop {
-    fn as_ref(&self) -> &LoopRef {
+impl std::convert::AsRef<Loop> for ThreadLoop {
+    fn as_ref(&self) -> &Loop {
         self.loop_()
     }
 }

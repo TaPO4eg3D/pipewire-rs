@@ -1,31 +1,30 @@
 // Copyright The pipewire-rs Contributors.
 // SPDX-License-Identifier: MIT
 
-use std::{
-    convert::TryInto,
-    ops::Deref,
-    os::unix::prelude::*,
-    ptr::{self, NonNull},
-    rc::{Rc, Weak},
-    time::Duration,
-};
+use std::{convert::TryInto, os::unix::prelude::*, ptr, time::Duration};
 
 use libc::{c_int, c_void};
 pub use nix::sys::signal::Signal;
 use spa::{spa_interface_call_method, support::system::IoFlags, utils::result::SpaResult};
 
-use crate::{utils::assert_main_thread, Error};
+use crate::utils::assert_main_thread;
+
+mod box_;
+pub use box_::*;
+mod rc;
+pub use rc::*;
 
 /// A transparent wrapper around a raw [`pw_loop`](`pw_sys::pw_loop`).
-/// It is usually only seen in a reference (`&LoopRef`).
+/// It is usually only seen in a reference (`&Loop`), and does not own the `pw_loop`.
 ///
-/// An owned version, [`Loop`], is available,
-/// which lets you create and own a [`pw_loop`](`pw_sys::pw_loop`),
-/// but other objects, such as [`MainLoop`](`crate::main_loop::MainLoop`), also contain them.
+/// Owned versions, [`LoopRc`] for shared ownership and [`LoopBox`] for unique ownership, are available,
+/// which lets you create and own a [`pw_loop`](`pw_sys::pw_loop`).
+///
+/// Other objects, such as [`MainLoop`](`crate::main_loop::MainLoop`), can also contain loops.
 #[repr(transparent)]
-pub struct LoopRef(pw_sys::pw_loop);
+pub struct Loop(pw_sys::pw_loop);
 
-impl LoopRef {
+impl Loop {
     pub fn as_raw(&self) -> &pw_sys::pw_loop {
         &self.0
     }
@@ -371,99 +370,6 @@ impl LoopRef {
     }
 }
 
-/// Trait implemented by objects that implement a `pw_loop` and are reference counted in some way.
-///
-/// # Safety
-///
-/// The `LoopRef` returned by the implementation of `AsRef<LoopRef>` must remain valid as long as any clone
-/// of the trait implementor is still alive. \
-pub unsafe trait IsLoopRc: Clone + AsRef<LoopRef> + 'static {}
-
-#[derive(Clone, Debug)]
-pub struct Loop {
-    inner: Rc<LoopInner>,
-}
-
-impl Loop {
-    /// Create a new [`Loop`].
-    pub fn new(properties: Option<&spa::utils::dict::DictRef>) -> Result<Self, Error> {
-        // This is a potential "entry point" to the library, so we need to ensure it is initialized.
-        crate::init();
-
-        unsafe {
-            let props = properties
-                .map_or(ptr::null(), |props| props.as_raw())
-                .cast_mut();
-            let l = pw_sys::pw_loop_new(props);
-            let ptr = ptr::NonNull::new(l).ok_or(Error::CreationFailed)?;
-            Ok(Self::from_raw(ptr))
-        }
-    }
-
-    /// Create a new loop from a raw [`pw_loop`](`pw_sys::pw_loop`), taking ownership of it.
-    ///
-    /// # Safety
-    /// The provided pointer must point to a valid, well aligned [`pw_loop`](`pw_sys::pw_loop`).
-    ///
-    /// The raw loop should not be manually destroyed or moved, as the new [`Loop`] takes ownership of it.
-    pub unsafe fn from_raw(ptr: NonNull<pw_sys::pw_loop>) -> Self {
-        Self {
-            inner: Rc::new(LoopInner::from_raw(ptr)),
-        }
-    }
-
-    pub fn downgrade(&self) -> WeakLoop {
-        let weak = Rc::downgrade(&self.inner);
-        WeakLoop { weak }
-    }
-}
-
-// Safety: The inner pw_loop is guaranteed to remain valid while any clone of the `Loop` is held,
-//         because we use an internal Rc to keep it alive.
-unsafe impl IsLoopRc for Loop {}
-
-impl std::ops::Deref for Loop {
-    type Target = LoopRef;
-
-    fn deref(&self) -> &Self::Target {
-        let loop_ = self.inner.ptr.as_ptr();
-        unsafe { &*(loop_.cast::<LoopRef>()) }
-    }
-}
-
-impl std::convert::AsRef<LoopRef> for Loop {
-    fn as_ref(&self) -> &LoopRef {
-        self.deref()
-    }
-}
-
-pub struct WeakLoop {
-    weak: Weak<LoopInner>,
-}
-
-impl WeakLoop {
-    pub fn upgrade(&self) -> Option<Loop> {
-        self.weak.upgrade().map(|inner| Loop { inner })
-    }
-}
-
-#[derive(Debug)]
-struct LoopInner {
-    ptr: ptr::NonNull<pw_sys::pw_loop>,
-}
-
-impl LoopInner {
-    pub unsafe fn from_raw(ptr: NonNull<pw_sys::pw_loop>) -> Self {
-        Self { ptr }
-    }
-}
-
-impl Drop for LoopInner {
-    fn drop(&mut self) {
-        unsafe { pw_sys::pw_loop_destroy(self.ptr.as_ptr()) }
-    }
-}
-
 pub trait IsSource {
     /// Return a valid pointer to a raw `spa_source`.
     fn as_ptr(&self) -> *mut spa_sys::spa_source;
@@ -473,13 +379,13 @@ type IoSourceData<I> = (I, Box<dyn Fn(&mut I) + 'static>);
 
 /// A source that can be used to react to IO events.
 ///
-/// This source can be obtained by calling [`add_io`](`LoopRef::add_io`) on a loop, registering a callback to it.
+/// This source can be obtained by calling [`add_io`](`Loop::add_io`) on a loop, registering a callback to it.
 pub struct IoSource<'l, I>
 where
     I: AsRawFd,
 {
     ptr: ptr::NonNull<spa_sys::spa_source>,
-    loop_: &'l LoopRef,
+    loop_: &'l Loop,
     // Store data wrapper to prevent leak
     _data: Box<IoSourceData<I>>,
 }
@@ -504,10 +410,10 @@ where
 
 /// A source that can be used to have a callback called when the loop is idle.
 ///
-/// This source can be obtained by calling [`add_idle`](`LoopRef::add_idle`) on a loop, registering a callback to it.
+/// This source can be obtained by calling [`add_idle`](`Loop::add_idle`) on a loop, registering a callback to it.
 pub struct IdleSource<'l> {
     ptr: ptr::NonNull<spa_sys::spa_source>,
-    loop_: &'l LoopRef,
+    loop_: &'l Loop,
     // Store data wrapper to prevent leak
     _data: Box<dyn Fn() + 'static>,
 }
@@ -543,10 +449,10 @@ impl<'l> Drop for IdleSource<'l> {
 
 /// A source that can be used to react to signals.
 ///
-/// This source can be obtained by calling [`add_signal_local`](`LoopRef::add_signal_local`) on a loop, registering a callback to it.
+/// This source can be obtained by calling [`add_signal_local`](`Loop::add_signal_local`) on a loop, registering a callback to it.
 pub struct SignalSource<'l> {
     ptr: ptr::NonNull<spa_sys::spa_source>,
-    loop_: &'l LoopRef,
+    loop_: &'l Loop,
     // Store data wrapper to prevent leak
     _data: Box<dyn Fn() + 'static>,
 }
@@ -565,13 +471,13 @@ impl<'l> Drop for SignalSource<'l> {
 
 /// A source that can be used to signal to a loop that an event has occurred.
 ///
-/// This source can be obtained by calling [`add_event`](`LoopRef::add_event`) on a loop, registering a callback to it.
+/// This source can be obtained by calling [`add_event`](`Loop::add_event`) on a loop, registering a callback to it.
 ///
 /// By calling [`signal`](`EventSource::signal`) on the `EventSource`, the loop is signaled that the event has occurred.
 /// It will then call the callback at the next possible occasion.
 pub struct EventSource<'l> {
     ptr: ptr::NonNull<spa_sys::spa_source>,
-    loop_: &'l LoopRef,
+    loop_: &'l Loop,
     // Store data wrapper to prevent leak
     _data: Box<dyn Fn() + 'static>,
 }
@@ -609,13 +515,13 @@ impl<'l> Drop for EventSource<'l> {
 
 /// A source that can be used to have a callback called on a timer.
 ///
-/// This source can be obtained by calling [`add_timer`](`LoopRef::add_timer`) on a loop, registering a callback to it.
+/// This source can be obtained by calling [`add_timer`](`Loop::add_timer`) on a loop, registering a callback to it.
 ///
 /// The timer starts out inactive.
 /// You can arm or disarm the timer by calling [`update_timer`](`Self::update_timer`).
 pub struct TimerSource<'l> {
     ptr: ptr::NonNull<spa_sys::spa_source>,
-    loop_: &'l LoopRef,
+    loop_: &'l Loop,
     // Store data wrapper to prevent leak
     _data: Box<dyn Fn(u64) + 'static>,
 }

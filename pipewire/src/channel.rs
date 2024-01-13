@@ -69,7 +69,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use crate::loop_::{IoSource, LoopRef};
+use crate::loop_::{IoSource, Loop};
 use spa::support::system::IoFlags;
 
 /// A receiver that has not been attached to a loop.
@@ -84,7 +84,7 @@ impl<T: 'static> Receiver<T> {
     ///
     /// This will make the loop call the callback with any messages that get sent to the receiver.
     #[must_use]
-    pub fn attach<F>(self, loop_: &LoopRef, callback: F) -> AttachedReceiver<T>
+    pub fn attach<F>(self, loop_: &Loop, callback: F) -> AttachedReceiver<T>
     where
         F: Fn(T) + 'static,
     {
@@ -191,7 +191,7 @@ struct Channel<T> {
 /// Create a Sender-Receiver pair, where the sender can be used to send messages to the receiver.
 ///
 /// This functions similar to [`std::sync::mpsc`], but with a receiver that can be attached to any
-/// [`LoopRef`](`crate::loop_::LoopRef`) to have the loop invoke a callback with any new messages.
+/// [`Loop`](`crate::loop_::Loop`) to have the loop invoke a callback with any new messages.
 ///
 /// This can be used for inter-thread communication without shared state and where [`std::sync::mpsc`] can not be used
 /// because the receiving thread is running the pipewire loop.

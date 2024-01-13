@@ -11,7 +11,7 @@ use std::{
 
 use crate::core::Core;
 use crate::error::Error;
-use crate::loop_::{IsLoopRc, LoopRef};
+use crate::loop_::{IsLoopRc, Loop};
 use crate::properties::{Properties, PropertiesRef};
 
 #[repr(transparent)]
@@ -49,7 +49,7 @@ pub struct ContextInner {
     ptr: ptr::NonNull<pw_sys::pw_context>,
     /// Store the loop here, so that the loop is not dropped before the context, which may lead to
     /// undefined behaviour.
-    _loop: Box<dyn AsRef<LoopRef>>,
+    _loop: Box<dyn AsRef<Loop>>,
 }
 
 impl fmt::Debug for ContextInner {
@@ -62,7 +62,7 @@ impl fmt::Debug for ContextInner {
 
 impl Context {
     fn new_internal<T: IsLoopRc>(loop_: &T, properties: Option<Properties>) -> Result<Self, Error> {
-        let loop_: Box<dyn AsRef<LoopRef>> = Box::new(loop_.clone());
+        let loop_: Box<dyn AsRef<Loop>> = Box::new(loop_.clone());
         let props = properties.map_or(ptr::null(), |props| props.into_raw()) as *mut _;
         let context = unsafe {
             pw_sys::pw_context_new((*loop_).as_ref().as_raw() as *const _ as *mut _, props, 0)

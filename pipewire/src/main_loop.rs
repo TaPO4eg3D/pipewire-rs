@@ -6,7 +6,7 @@ use std::rc::{Rc, Weak};
 
 use crate::{
     error::Error,
-    loop_::{IsLoopRc, LoopRef},
+    loop_::{IsLoopRc, Loop},
 };
 
 #[derive(Debug, Clone)]
@@ -51,11 +51,11 @@ impl MainLoop {
         WeakMainLoop { weak }
     }
 
-    pub fn loop_(&self) -> &LoopRef {
+    pub fn loop_(&self) -> &Loop {
         unsafe {
             let pw_loop = pw_sys::pw_main_loop_get_loop(self.as_raw_ptr());
             // FIXME: Make sure pw_loop is not null
-            &*(pw_loop.cast::<LoopRef>())
+            &*(pw_loop.cast::<Loop>())
         }
     }
 
@@ -76,8 +76,8 @@ impl MainLoop {
 //         because we use an internal Rc to keep the pw_main_loop containing the pw_loop alive.
 unsafe impl IsLoopRc for MainLoop {}
 
-impl std::convert::AsRef<LoopRef> for MainLoop {
-    fn as_ref(&self) -> &LoopRef {
+impl std::convert::AsRef<Loop> for MainLoop {
+    fn as_ref(&self) -> &Loop {
         self.loop_()
     }
 }
