@@ -18,7 +18,7 @@ pub const CHAN_SIZE: usize = std::mem::size_of::<i16>();
 pub fn main() -> Result<(), pw::Error> {
     pw::init();
     let mainloop = pw::main_loop::MainLoopRc::new(None)?;
-    let context = pw::context::Context::new(&mainloop)?;
+    let context = pw::context::ContextRc::new(&mainloop, None)?;
     let core = context.connect(None)?;
 
     let data: f64 = 0.0;

@@ -184,7 +184,7 @@ pub struct Core {
 impl Core {
     pub(crate) fn from_ptr(
         ptr: ptr::NonNull<pw_sys::pw_core>,
-        _context: crate::context::Context,
+        _context: crate::context::ContextRc,
     ) -> Self {
         let inner = CoreInner::from_ptr(ptr, _context);
         Self {
@@ -210,11 +210,11 @@ impl AsRef<CoreRef> for Core {
 #[derive(Debug)]
 struct CoreInner {
     ptr: ptr::NonNull<pw_sys::pw_core>,
-    _context: crate::context::Context,
+    _context: crate::context::ContextRc,
 }
 
 impl CoreInner {
-    fn from_ptr(ptr: ptr::NonNull<pw_sys::pw_core>, _context: crate::context::Context) -> Self {
+    fn from_ptr(ptr: ptr::NonNull<pw_sys::pw_core>, _context: crate::context::ContextRc) -> Self {
         Self { ptr, _context }
     }
 }

@@ -73,7 +73,7 @@ fn monitor(remote: Option<String>) -> Result<()> {
             }
         });
 
-    let context = pw::context::Context::new(&main_loop)?;
+    let context = pw::context::ContextRc::new(&main_loop, None)?;
     let props = remote.map(|remote| {
         properties! {
             *pw::keys::REMOTE_NAME => remote

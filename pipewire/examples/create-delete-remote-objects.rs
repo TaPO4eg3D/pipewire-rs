@@ -9,7 +9,8 @@ fn main() {
     pw::init();
     let mainloop =
         pw::main_loop::MainLoopRc::new(None).expect("Failed to create Pipewire Mainloop");
-    let context = pw::context::Context::new(&mainloop).expect("Failed to create Pipewire Context");
+    let context =
+        pw::context::ContextRc::new(&mainloop, None).expect("Failed to create Pipewire Context");
     let core = context
         .connect(None)
         .expect("Failed to connect to Pipewire Core");
