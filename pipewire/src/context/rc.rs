@@ -10,7 +10,7 @@ use std::{
 };
 
 use crate::{
-    core::Core,
+    core::{CoreBox, CoreRc},
     loop_::{IsLoopRc, Loop},
     properties::Properties,
     Error,
@@ -72,18 +72,22 @@ impl ContextRc {
         ContextWeak { weak }
     }
 
-    pub fn connect(&self, properties: Option<Properties>) -> Result<Core, Error> {
+    pub fn connect_rc(&self, properties: Option<Properties>) -> Result<CoreRc, Error> {
         let properties = properties.map_or(ptr::null_mut(), |p| p.into_raw());
 
         unsafe {
             let core = pw_sys::pw_context_connect(self.as_raw_ptr(), properties, 0);
             let ptr = ptr::NonNull::new(core).ok_or(Error::CreationFailed)?;
 
-            Ok(Core::from_ptr(ptr, self.clone()))
+            Ok(CoreRc::from_raw(ptr, self.clone()))
         }
     }
 
-    pub fn connect_fd(&self, fd: OwnedFd, properties: Option<Properties>) -> Result<Core, Error> {
+    pub fn connect_fd<'c>(
+        &'c self,
+        fd: OwnedFd,
+        properties: Option<Properties>,
+    ) -> Result<CoreBox<'c>, Error> {
         let properties = properties.map_or(ptr::null_mut(), |p| p.into_raw());
 
         unsafe {
@@ -91,7 +95,23 @@ impl ContextRc {
             let core = pw_sys::pw_context_connect_fd(self.as_raw_ptr(), raw_fd, properties, 0);
             let ptr = ptr::NonNull::new(core).ok_or(Error::CreationFailed)?;
 
-            Ok(Core::from_ptr(ptr, self.clone()))
+            Ok(CoreBox::from_raw(ptr))
+        }
+    }
+
+    pub fn connect_fd_rc(
+        &self,
+        fd: OwnedFd,
+        properties: Option<Properties>,
+    ) -> Result<CoreRc, Error> {
+        let properties = properties.map_or(ptr::null_mut(), |p| p.into_raw());
+
+        unsafe {
+            let raw_fd = fd.into_raw_fd();
+            let core = pw_sys::pw_context_connect_fd(self.as_raw_ptr(), raw_fd, properties, 0);
+            let ptr = ptr::NonNull::new(core).ok_or(Error::CreationFailed)?;
+
+            Ok(CoreRc::from_raw(ptr, self.clone()))
         }
     }
 }

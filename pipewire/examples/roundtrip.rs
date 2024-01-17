@@ -14,7 +14,7 @@ fn main() {
 fn roundtrip() {
     let mainloop = pw::main_loop::MainLoopRc::new(None).expect("Failed to create main loop");
     let context = pw::context::ContextRc::new(&mainloop, None).expect("Failed to create context");
-    let core = context.connect(None).expect("Failed to connect to core");
+    let core = context.connect_rc(None).expect("Failed to connect to core");
     let registry = core.get_registry().expect("Failed to get Registry");
 
     // To comply with Rust's safety rules, we wrap this variable in an `Rc` and  a `Cell`.

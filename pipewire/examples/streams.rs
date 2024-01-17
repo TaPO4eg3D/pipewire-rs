@@ -29,7 +29,7 @@ pub fn main() -> Result<(), pw::Error> {
 
     let mainloop = pw::main_loop::MainLoopRc::new(None)?;
     let context = pw::context::ContextRc::new(&mainloop, None)?;
-    let core = context.connect(None)?;
+    let core = context.connect_rc(None)?;
 
     let data = UserData {
         format: Default::default(),

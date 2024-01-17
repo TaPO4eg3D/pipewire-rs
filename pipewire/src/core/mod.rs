@@ -5,10 +5,10 @@ use bitflags::bitflags;
 use libc::{c_char, c_void};
 use std::{
     ffi::{CStr, CString},
-    rc::Rc,
+    fmt, mem,
+    pin::Pin,
+    ptr,
 };
-use std::{fmt, mem, ptr};
-use std::{ops::Deref, pin::Pin};
 
 use crate::{
     proxy::{Proxy, ProxyT},
@@ -20,12 +20,17 @@ use spa::{
     utils::result::{AsyncSeq, SpaResult},
 };
 
+mod box_;
+pub use box_::*;
+mod rc;
+pub use rc::*;
+
 pub const PW_ID_CORE: u32 = pw_sys::PW_ID_CORE;
 
 #[repr(transparent)]
-pub struct CoreRef(pw_sys::pw_core);
+pub struct Core(pw_sys::pw_core);
 
-impl CoreRef {
+impl Core {
     pub fn as_raw(&self) -> &pw_sys::pw_core {
         &self.0
     }
@@ -128,7 +133,7 @@ impl CoreRef {
     ) -> Result<P, Error> {
         let factory_name = CString::new(factory_name).expect("Null byte in factory_name parameter");
         let factory_name_cstr = factory_name.as_c_str();
-        CoreRef::create_object_cstr(self, factory_name_cstr, properties)
+        self.create_object_cstr(factory_name_cstr, properties)
     }
 
     pub fn create_object_cstr<P: ProxyT>(
@@ -176,49 +181,6 @@ impl CoreRef {
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct Core {
-    inner: Rc<CoreInner>,
-}
-
-impl Core {
-    pub(crate) fn from_ptr(
-        ptr: ptr::NonNull<pw_sys::pw_core>,
-        _context: crate::context::ContextRc,
-    ) -> Self {
-        let inner = CoreInner::from_ptr(ptr, _context);
-        Self {
-            inner: Rc::new(inner),
-        }
-    }
-}
-
-impl Deref for Core {
-    type Target = CoreRef;
-
-    fn deref(&self) -> &Self::Target {
-        unsafe { self.inner.deref().ptr.cast::<CoreRef>().as_ref() }
-    }
-}
-
-impl AsRef<CoreRef> for Core {
-    fn as_ref(&self) -> &CoreRef {
-        self.deref()
-    }
-}
-
-#[derive(Debug)]
-struct CoreInner {
-    ptr: ptr::NonNull<pw_sys::pw_core>,
-    _context: crate::context::ContextRc,
-}
-
-impl CoreInner {
-    fn from_ptr(ptr: ptr::NonNull<pw_sys::pw_core>, _context: crate::context::ContextRc) -> Self {
-        Self { ptr, _context }
-    }
-}
-
 #[derive(Default)]
 struct ListenerLocalCallbacks {
     #[allow(clippy::type_complexity)]
@@ -230,7 +192,7 @@ struct ListenerLocalCallbacks {
 }
 
 pub struct ListenerLocalBuilder<'a> {
-    core: &'a CoreRef,
+    core: &'a Core,
     cbs: ListenerLocalCallbacks,
 }
 

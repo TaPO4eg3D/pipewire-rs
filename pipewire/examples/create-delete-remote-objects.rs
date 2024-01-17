@@ -12,7 +12,7 @@ fn main() {
     let context =
         pw::context::ContextRc::new(&mainloop, None).expect("Failed to create Pipewire Context");
     let core = context
-        .connect(None)
+        .connect_rc(None)
         .expect("Failed to connect to Pipewire Core");
     let registry = core.get_registry().expect("Failed to get Registry");
 
@@ -71,7 +71,7 @@ fn main() {
 
 /// Do a single roundtrip to process all events.
 /// See the example in roundtrip.rs for more details on this.
-fn do_roundtrip(mainloop: &pw::main_loop::MainLoopRc, core: &pw::core::Core) {
+fn do_roundtrip(mainloop: &pw::main_loop::MainLoopRc, core: &pw::core::CoreRc) {
     let done = Rc::new(Cell::new(false));
     let done_clone = done.clone();
     let loop_clone = mainloop.clone();

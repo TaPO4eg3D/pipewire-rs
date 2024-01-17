@@ -79,7 +79,7 @@ fn monitor(remote: Option<String>) -> Result<()> {
             *pw::keys::REMOTE_NAME => remote
         }
     });
-    let core = context.connect(props)?;
+    let core = context.connect_rc(props)?;
 
     let main_loop_weak = main_loop.downgrade();
     let _listener = core

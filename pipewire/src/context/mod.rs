@@ -3,7 +3,11 @@
 
 use std::ptr;
 
-use crate::properties::PropertiesRef;
+use crate::{
+    core::CoreBox,
+    properties::{Properties, PropertiesRef},
+    Error,
+};
 
 mod box_;
 pub use box_::*;
@@ -29,9 +33,21 @@ impl Context {
             props.cast().as_ref()
         }
     }
+
     pub fn update_properties(&self, properties: &spa::utils::dict::DictRef) {
         unsafe {
             pw_sys::pw_context_update_properties(self.as_raw_ptr(), properties.as_raw_ptr());
+        }
+    }
+
+    pub fn connect<'c>(&'c self, properties: Option<Properties>) -> Result<CoreBox<'c>, Error> {
+        let properties = properties.map_or(ptr::null_mut(), |p| p.into_raw());
+
+        unsafe {
+            let core = pw_sys::pw_context_connect(self.as_raw_ptr(), properties, 0);
+            let ptr = ptr::NonNull::new(core).ok_or(Error::CreationFailed)?;
+
+            Ok(CoreBox::from_raw(ptr))
         }
     }
 }

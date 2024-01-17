@@ -5,7 +5,7 @@
 
 use crate::buffer::Buffer;
 use crate::{
-    core::Core,
+    core::CoreRc,
     error::Error,
     properties::{Properties, PropertiesRef},
 };
@@ -55,14 +55,14 @@ impl StreamState {
 pub struct Stream {
     ptr: ptr::NonNull<pw_sys::pw_stream>,
     // objects that need to stay alive while the Stream is
-    _core: Core,
+    _core: CoreRc,
 }
 
 impl Stream {
     /// Create a [`Stream`]
     ///
     /// Initialises a new stream with the given `name` and `properties`.
-    pub fn new(core: &Core, name: &str, properties: Properties) -> Result<Self, Error> {
+    pub fn new(core: &CoreRc, name: &str, properties: Properties) -> Result<Self, Error> {
         let name = CString::new(name).expect("Invalid byte in stream name");
 
         let c_str = name.as_c_str();
@@ -70,7 +70,7 @@ impl Stream {
     }
 
     /// Initialises a new stream with the given `name` as Cstr and `properties`.
-    pub fn new_cstr(core: &Core, name: &CStr, properties: Properties) -> Result<Self, Error> {
+    pub fn new_cstr(core: &CoreRc, name: &CStr, properties: Properties) -> Result<Self, Error> {
         let stream = unsafe {
             pw_sys::pw_stream_new(core.as_raw_ptr(), name.as_ptr(), properties.into_raw())
         };
