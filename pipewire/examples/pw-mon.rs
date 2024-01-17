@@ -101,8 +101,8 @@ fn monitor(remote: Option<String>) -> Result<()> {
         })
         .register();
 
-    let registry = Rc::new(core.get_registry()?);
-    let registry_weak = Rc::downgrade(&registry);
+    let registry = core.get_registry_rc()?;
+    let registry_weak = registry.downgrade();
 
     // Proxies and their listeners need to stay alive so store them here
     let proxies = Rc::new(RefCell::new(Proxies::new()));

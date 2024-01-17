@@ -7,6 +7,10 @@ use std::{
     rc::{Rc, Weak},
 };
 
+use spa::spa_interface_call_method;
+
+use crate::{registry::RegistryRc, Error};
+
 use super::{Core, CoreBox};
 
 #[derive(Debug)]
@@ -41,6 +45,20 @@ impl CoreRc {
     pub fn downgrade(&self) -> CoreWeak {
         let weak = Rc::downgrade(&self.inner);
         CoreWeak { weak }
+    }
+
+    pub fn get_registry_rc(&self) -> Result<RegistryRc, Error> {
+        unsafe {
+            let registry = spa_interface_call_method!(
+                self.as_raw_ptr(),
+                pw_sys::pw_core_methods,
+                get_registry,
+                pw_sys::PW_VERSION_REGISTRY,
+                0
+            );
+            let registry = ptr::NonNull::new(registry).ok_or(Error::CreationFailed)?;
+            Ok(RegistryRc::from_raw(registry, self.clone()))
+        }
     }
 }
 

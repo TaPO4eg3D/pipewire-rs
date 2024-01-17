@@ -18,18 +18,21 @@ use crate::{
     Error,
 };
 
-#[derive(Debug)]
-pub struct Registry {
-    ptr: ptr::NonNull<pw_sys::pw_registry>,
-}
+mod box_;
+pub use box_::*;
+mod rc;
+pub use rc::*;
+
+#[repr(transparent)]
+pub struct Registry(pw_sys::pw_registry);
 
 impl Registry {
-    pub(crate) fn new(ptr: ptr::NonNull<pw_sys::pw_registry>) -> Self {
-        Registry { ptr }
+    pub fn as_raw(&self) -> &pw_sys::pw_registry {
+        &self.0
     }
 
-    fn as_ptr(&self) -> *mut pw_sys::pw_registry {
-        self.ptr.as_ptr()
+    pub fn as_raw_ptr(&self) -> *mut pw_sys::pw_registry {
+        std::ptr::addr_of!(self.0).cast_mut()
     }
 
     // TODO: add non-local version when we'll bind pw_thread_loop_start()
@@ -50,7 +53,7 @@ impl Registry {
             let version = object.type_.client_version();
 
             let proxy = spa::spa_interface_call_method!(
-                self.as_ptr(),
+                self.as_raw_ptr(),
                 pw_sys::pw_registry_methods,
                 bind,
                 object.id,
@@ -71,7 +74,7 @@ impl Registry {
     pub fn destroy_global(&self, global_id: u32) -> spa::utils::result::SpaResult {
         let result = unsafe {
             spa::spa_interface_call_method!(
-                self.as_ptr(),
+                self.as_raw_ptr(),
                 pw_sys::pw_registry_methods,
                 destroy,
                 global_id
@@ -79,14 +82,6 @@ impl Registry {
         };
 
         spa::utils::result::SpaResult::from_c(result)
-    }
-}
-
-impl Drop for Registry {
-    fn drop(&mut self) {
-        unsafe {
-            pw_sys::pw_proxy_destroy(self.as_ptr().cast());
-        }
     }
 }
 
@@ -174,7 +169,7 @@ impl<'a> ListenerLocalBuilder<'a> {
         };
 
         let (listener, data) = unsafe {
-            let ptr = self.registry.as_ptr();
+            let ptr = self.registry.as_raw_ptr();
             let data = Box::into_raw(Box::new(self.cbs));
             let mut listener: Pin<Box<spa_sys::spa_hook>> = Box::pin(mem::zeroed());
             let listener_ptr: *mut spa_sys::spa_hook = listener.as_mut().get_unchecked_mut();

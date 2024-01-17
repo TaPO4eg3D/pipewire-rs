@@ -12,7 +12,7 @@ use std::{
 
 use crate::{
     proxy::{Proxy, ProxyT},
-    registry::Registry,
+    registry::RegistryBox,
     Error,
 };
 use spa::{
@@ -48,19 +48,18 @@ impl Core {
         }
     }
 
-    pub fn get_registry(&self) -> Result<Registry, Error> {
-        let registry = unsafe {
-            spa_interface_call_method!(
+    pub fn get_registry(&self) -> Result<RegistryBox, Error> {
+        unsafe {
+            let registry = spa_interface_call_method!(
                 self.as_raw_ptr(),
                 pw_sys::pw_core_methods,
                 get_registry,
                 pw_sys::PW_VERSION_REGISTRY,
                 0
-            )
-        };
-        let registry = ptr::NonNull::new(registry).ok_or(Error::CreationFailed)?;
-
-        Ok(Registry::new(registry))
+            );
+            let registry = ptr::NonNull::new(registry).ok_or(Error::CreationFailed)?;
+            Ok(RegistryBox::from_raw(registry))
+        }
     }
 
     pub fn sync(&self, seq: i32) -> Result<AsyncSeq, Error> {
