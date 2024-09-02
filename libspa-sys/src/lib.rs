@@ -22,3 +22,9 @@ pub use bindings::*;
 // The rest is added in modules here.
 mod type_info;
 pub use type_info::*;
+
+mod command;
+pub use command::*;
+
+mod node_command;
+pub use node_command::*;
