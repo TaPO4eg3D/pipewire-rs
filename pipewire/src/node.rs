@@ -86,6 +86,17 @@ impl Node {
             );
         }
     }
+
+    pub fn send_command(&self, command: &spa::pod::command::Command) {
+        unsafe {
+            spa_interface_call_method!(
+                self.proxy.as_ptr(),
+                pw_sys::pw_node_methods,
+                send_command,
+                command.as_raw_ptr()
+            );
+        }
+    }
 }
 
 impl ProxyT for Node {
