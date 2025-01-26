@@ -3,7 +3,7 @@
 
 use std::{marker::PhantomData, ops::Deref, ptr};
 
-use crate::{loop_::Loop, properties::Properties, Error};
+use crate::{loop_::Loop, properties::PropertiesBox, Error};
 
 use super::Context;
 
@@ -14,7 +14,10 @@ pub struct ContextBox<'l> {
 }
 
 impl<'l> ContextBox<'l> {
-    pub fn new(loop_: &'l Loop, properties: Option<Properties>) -> Result<ContextBox<'l>, Error> {
+    pub fn new(
+        loop_: &'l Loop,
+        properties: Option<PropertiesBox>,
+    ) -> Result<ContextBox<'l>, Error> {
         unsafe {
             let props = properties
                 .map_or(ptr::null(), |props| props.into_raw())

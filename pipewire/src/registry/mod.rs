@@ -12,7 +12,7 @@ use std::{
 
 use crate::{
     permissions::PermissionFlags,
-    properties::Properties,
+    properties::PropertiesBox,
     proxy::{Proxy, ProxyT},
     types::ObjectType,
     Error,
@@ -227,7 +227,7 @@ impl GlobalObject<&spa::utils::dict::DictRef> {
 }
 
 impl<P: AsRef<spa::utils::dict::DictRef>> GlobalObject<P> {
-    pub fn to_owned(&self) -> GlobalObject<Properties> {
+    pub fn to_owned(&self) -> GlobalObject<PropertiesBox> {
         GlobalObject {
             id: self.id,
             permissions: self.permissions,
@@ -236,7 +236,7 @@ impl<P: AsRef<spa::utils::dict::DictRef>> GlobalObject<P> {
             props: self
                 .props
                 .as_ref()
-                .map(|props| Properties::from_dict(props.as_ref())),
+                .map(|props| PropertiesBox::from_dict(props.as_ref())),
         }
     }
 }

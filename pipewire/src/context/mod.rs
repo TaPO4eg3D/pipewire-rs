@@ -5,7 +5,7 @@ use std::ptr;
 
 use crate::{
     core::CoreBox,
-    properties::{Properties, PropertiesRef},
+    properties::{Properties, PropertiesBox},
     Error,
 };
 
@@ -26,7 +26,7 @@ impl Context {
         std::ptr::addr_of!(self.0).cast_mut()
     }
 
-    pub fn properties(&self) -> &PropertiesRef {
+    pub fn properties(&self) -> &Properties {
         unsafe {
             let props = pw_sys::pw_context_get_properties(self.as_raw_ptr());
             let props = ptr::NonNull::new(props.cast_mut()).expect("context properties is NULL");
@@ -40,7 +40,7 @@ impl Context {
         }
     }
 
-    pub fn connect<'c>(&'c self, properties: Option<Properties>) -> Result<CoreBox<'c>, Error> {
+    pub fn connect<'c>(&'c self, properties: Option<PropertiesBox>) -> Result<CoreBox<'c>, Error> {
         let properties = properties.map_or(ptr::null_mut(), |p| p.into_raw());
 
         unsafe {

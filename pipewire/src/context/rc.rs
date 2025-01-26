@@ -12,7 +12,7 @@ use std::{
 use crate::{
     core::{CoreBox, CoreRc},
     loop_::{IsLoopRc, Loop},
-    properties::Properties,
+    properties::PropertiesBox,
     Error,
 };
 
@@ -40,7 +40,7 @@ pub struct ContextRc {
 }
 
 impl ContextRc {
-    pub fn new<T: IsLoopRc>(loop_: &T, properties: Option<Properties>) -> Result<Self, Error> {
+    pub fn new<T: IsLoopRc>(loop_: &T, properties: Option<PropertiesBox>) -> Result<Self, Error> {
         let loop_: Box<dyn AsRef<Loop>> = Box::new(loop_.clone());
         let props = properties
             .map_or(ptr::null(), |props| props.into_raw())
@@ -72,7 +72,7 @@ impl ContextRc {
         ContextWeak { weak }
     }
 
-    pub fn connect_rc(&self, properties: Option<Properties>) -> Result<CoreRc, Error> {
+    pub fn connect_rc(&self, properties: Option<PropertiesBox>) -> Result<CoreRc, Error> {
         let properties = properties.map_or(ptr::null_mut(), |p| p.into_raw());
 
         unsafe {
@@ -86,7 +86,7 @@ impl ContextRc {
     pub fn connect_fd<'c>(
         &'c self,
         fd: OwnedFd,
-        properties: Option<Properties>,
+        properties: Option<PropertiesBox>,
     ) -> Result<CoreBox<'c>, Error> {
         let properties = properties.map_or(ptr::null_mut(), |p| p.into_raw());
 
@@ -102,7 +102,7 @@ impl ContextRc {
     pub fn connect_fd_rc(
         &self,
         fd: OwnedFd,
-        properties: Option<Properties>,
+        properties: Option<PropertiesBox>,
     ) -> Result<CoreRc, Error> {
         let properties = properties.map_or(ptr::null_mut(), |p| p.into_raw());
 
