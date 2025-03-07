@@ -8,7 +8,7 @@ members = [
 ]
 
 [workspace.package]
-authors = ["Tom Wagner <tom.a.wagner@protonmail.com", "Guillaume Desmottes <guillaume.desmottes@collabora.com>"]
+authors = ["Tom Wagner <tom.a.wagner@protonmail.com>", "Guillaume Desmottes <guillaume.desmottes@collabora.com>"]
 categories = ["api-bindings", "multimedia"]
 edition = "2021"
 homepage = "https://pipewire.org"
