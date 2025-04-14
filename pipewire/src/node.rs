@@ -87,7 +87,7 @@ impl Node {
         }
     }
 
-    pub fn send_command(&self, command: &spa::pod::command::Command) {
+    pub fn send_command(&self, command: &spa::node::command::NodeCommand) {
         unsafe {
             spa_interface_call_method!(
                 self.proxy.as_ptr(),

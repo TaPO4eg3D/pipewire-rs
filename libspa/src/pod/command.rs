@@ -5,6 +5,21 @@ use std::ptr::addr_of;
 
 use crate::{constants::ID_INVALID, pod::SpaTypes};
 
+#[derive(Debug)]
+pub enum CommandError {
+    WrongCommandType,
+}
+
+impl std::fmt::Display for CommandError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::WrongCommandType => f.write_str("Wrong command type"),
+        }
+    }
+}
+
+impl std::error::Error for CommandError {}
+
 #[repr(transparent)]
 pub struct Command(spa_sys::spa_command);
 
@@ -25,11 +40,11 @@ impl Command {
         unsafe { SpaTypes::from_raw(spa_sys::spa_command_type(self.as_raw_ptr())) }
     }
 
-    pub fn id(&self, type_: SpaTypes) -> Result<u32, ()> {
+    pub fn id(&self, type_: SpaTypes) -> Result<u32, CommandError> {
         let id = unsafe { spa_sys::spa_command_id(self.as_raw_ptr(), type_.as_raw()) };
 
         if id == ID_INVALID {
-            Err(())
+            Err(CommandError::WrongCommandType)
         } else {
             Ok(id)
         }
