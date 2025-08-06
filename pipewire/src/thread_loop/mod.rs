@@ -1,77 +1,35 @@
 // Copyright The pipewire-rs Contributors.
 // SPDX-License-Identifier: MIT
 
-use std::{
-    ffi::{CStr, CString},
-    mem::MaybeUninit,
-    ptr,
-    rc::{Rc, Weak},
-};
+use std::mem::MaybeUninit;
 
-use crate::{
-    error::Error,
-    loop_::{IsLoopRc, Loop},
-};
+use crate::loop_::Loop;
+
+mod box_;
+pub use box_::*;
+mod rc;
+pub use rc::*;
 
 /// A wrapper around the pipewire threaded loop interface. ThreadLoops are a higher level
 /// of abstraction around the loop interface. A ThreadLoop can be used to spawn a new thread
 /// that runs the wrapped loop.
-#[derive(Debug, Clone)]
-pub struct ThreadLoop {
-    inner: Rc<ThreadLoopInner>,
-}
+#[repr(transparent)]
+pub struct ThreadLoop(pw_sys::pw_thread_loop);
 
 impl ThreadLoop {
-    /// Initialize Pipewire and create a new `ThreadLoop` with the given `name` and optional properties.
-    ///
-    /// # Safety
-    /// TODO
-    pub unsafe fn new(
-        name: Option<&str>,
-        properties: Option<&spa::utils::dict::DictRef>,
-    ) -> Result<Self, Error> {
-        let name = name.map(|name| CString::new(name).unwrap());
-
-        ThreadLoop::new_cstr(name.as_deref(), properties)
-    }
-
-    /// Initialize Pipewire and create a new `ThreadLoop` with the given `name` as Cstr
-    ///
-    /// # Safety
-    /// TODO
-    pub unsafe fn new_cstr(
-        name: Option<&CStr>,
-        properties: Option<&spa::utils::dict::DictRef>,
-    ) -> Result<Self, Error> {
-        super::init();
-
-        unsafe {
-            let props = properties.map_or(ptr::null(), |props| props.as_raw_ptr());
-            let l = pw_sys::pw_thread_loop_new(
-                name.map_or(ptr::null(), |p| p.as_ptr() as *const _),
-                props,
-            );
-            let ptr = ptr::NonNull::new(l).ok_or(Error::CreationFailed)?;
-
-            Ok(Self {
-                inner: Rc::new(ThreadLoopInner::from_raw(ptr)),
-            })
-        }
-    }
-
-    pub fn downgrade(&self) -> WeakThreadLoop {
-        let weak = Rc::downgrade(&self.inner);
-        WeakThreadLoop { weak }
+    pub fn as_raw(&self) -> &pw_sys::pw_thread_loop {
+        &self.0
     }
 
     pub fn as_raw_ptr(&self) -> *mut pw_sys::pw_thread_loop {
-        self.inner.ptr.as_ptr()
+        std::ptr::addr_of!(self.0).cast_mut()
     }
 
     pub fn loop_(&self) -> &Loop {
         unsafe {
-            let thread_loop = pw_sys::pw_thread_loop_get_loop(self.as_raw_ptr());
-            &*(thread_loop.cast::<Loop>())
+            let pw_loop = pw_sys::pw_thread_loop_get_loop(self.as_raw_ptr());
+            // FIXME: Make sure pw_loop is not null
+            &*(pw_loop.cast::<Loop>())
         }
     }
 
@@ -174,26 +132,6 @@ impl ThreadLoop {
     }
 }
 
-// Safety: The pw_loop is guaranteed to remain valid while any clone of the `ThreadLoop` is held,
-//         because we use an internal Rc to keep the pw_thread_loop containing the pw_loop alive.
-unsafe impl IsLoopRc for ThreadLoop {}
-
-impl std::convert::AsRef<Loop> for ThreadLoop {
-    fn as_ref(&self) -> &Loop {
-        self.loop_()
-    }
-}
-
-pub struct WeakThreadLoop {
-    weak: Weak<ThreadLoopInner>,
-}
-
-impl WeakThreadLoop {
-    pub fn upgrade(&self) -> Option<ThreadLoop> {
-        self.weak.upgrade().map(|inner| ThreadLoop { inner })
-    }
-}
-
 pub struct ThreadLoopLockGuard<'a> {
     thread_loop: &'a ThreadLoop,
 }
@@ -208,7 +146,7 @@ impl<'a> ThreadLoopLockGuard<'a> {
 
     /// Unlock the loop
     ///
-    /// Unlocking the loop will call `drop()`
+    /// Equivalent to dropping the lock guard.
     pub fn unlock(self) {
         drop(self);
     }
@@ -219,22 +157,5 @@ impl<'a> Drop for ThreadLoopLockGuard<'a> {
         unsafe {
             pw_sys::pw_thread_loop_unlock(self.thread_loop.as_raw_ptr());
         }
-    }
-}
-
-#[derive(Debug)]
-struct ThreadLoopInner {
-    ptr: ptr::NonNull<pw_sys::pw_thread_loop>,
-}
-
-impl ThreadLoopInner {
-    pub unsafe fn from_raw(ptr: ptr::NonNull<pw_sys::pw_thread_loop>) -> Self {
-        Self { ptr }
-    }
-}
-
-impl Drop for ThreadLoopInner {
-    fn drop(&mut self) {
-        unsafe { pw_sys::pw_thread_loop_destroy(self.ptr.as_ptr()) }
     }
 }
