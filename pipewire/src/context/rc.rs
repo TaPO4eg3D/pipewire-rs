@@ -10,7 +10,7 @@ use std::{
 };
 
 use crate::{
-    core::{CoreBox, CoreRc},
+    core::CoreRc,
     loop_::{IsLoopRc, Loop},
     properties::PropertiesBox,
     Error,
@@ -80,22 +80,6 @@ impl ContextRc {
             let ptr = ptr::NonNull::new(core).ok_or(Error::CreationFailed)?;
 
             Ok(CoreRc::from_raw(ptr, self.clone()))
-        }
-    }
-
-    pub fn connect_fd<'c>(
-        &'c self,
-        fd: OwnedFd,
-        properties: Option<PropertiesBox>,
-    ) -> Result<CoreBox<'c>, Error> {
-        let properties = properties.map_or(ptr::null_mut(), |p| p.into_raw());
-
-        unsafe {
-            let raw_fd = fd.into_raw_fd();
-            let core = pw_sys::pw_context_connect_fd(self.as_raw_ptr(), raw_fd, properties, 0);
-            let ptr = ptr::NonNull::new(core).ok_or(Error::CreationFailed)?;
-
-            Ok(CoreBox::from_raw(ptr))
         }
     }
 

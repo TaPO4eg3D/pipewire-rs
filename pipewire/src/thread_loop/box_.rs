@@ -3,6 +3,7 @@
 
 use std::{
     ffi::{CStr, CString},
+    ops::Deref,
     ptr,
 };
 
@@ -77,7 +78,7 @@ impl std::ops::Deref for ThreadLoopBox {
 
 impl AsRef<ThreadLoop> for ThreadLoopBox {
     fn as_ref(&self) -> &ThreadLoop {
-        &*self
+        self.deref()
     }
 }
 

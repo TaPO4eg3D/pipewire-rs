@@ -54,6 +54,9 @@ impl ThreadLoopRc {
     }
 
     /// Create a [`ThreadLoopRc`] using an existing [`ThreadLoopBox`].
+    ///
+    /// # Safety
+    /// TODO
     pub unsafe fn from_box(thread_loop: ThreadLoopBox) -> Self {
         Self {
             inner: Rc::new(ThreadLoopRcInner { thread_loop }),

@@ -1,7 +1,10 @@
 // Copyright The pipewire-rs Contributors.
 // SPDX-License-Identifier: MIT
 
-use std::ptr;
+use std::{
+    os::fd::{IntoRawFd, OwnedFd},
+    ptr,
+};
 
 use crate::{
     core::CoreBox,
@@ -40,11 +43,27 @@ impl Context {
         }
     }
 
-    pub fn connect<'c>(&'c self, properties: Option<PropertiesBox>) -> Result<CoreBox<'c>, Error> {
+    pub fn connect(&self, properties: Option<PropertiesBox>) -> Result<CoreBox<'_>, Error> {
         let properties = properties.map_or(ptr::null_mut(), |p| p.into_raw());
 
         unsafe {
             let core = pw_sys::pw_context_connect(self.as_raw_ptr(), properties, 0);
+            let ptr = ptr::NonNull::new(core).ok_or(Error::CreationFailed)?;
+
+            Ok(CoreBox::from_raw(ptr))
+        }
+    }
+
+    pub fn connect_fd(
+        &self,
+        fd: OwnedFd,
+        properties: Option<PropertiesBox>,
+    ) -> Result<CoreBox<'_>, Error> {
+        let properties = properties.map_or(ptr::null_mut(), |p| p.into_raw());
+
+        unsafe {
+            let raw_fd = fd.into_raw_fd();
+            let core = pw_sys::pw_context_connect_fd(self.as_raw_ptr(), raw_fd, properties, 0);
             let ptr = ptr::NonNull::new(core).ok_or(Error::CreationFailed)?;
 
             Ok(CoreBox::from_raw(ptr))

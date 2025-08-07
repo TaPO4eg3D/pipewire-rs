@@ -1,7 +1,7 @@
 // Copyright The pipewire-rs Contributors.
 // SPDX-License-Identifier: MIT
 
-use std::ptr;
+use std::{ops::Deref, ptr};
 
 use crate::Error;
 
@@ -55,7 +55,7 @@ impl std::ops::Deref for MainLoopBox {
 
 impl AsRef<MainLoop> for MainLoopBox {
     fn as_ref(&self) -> &MainLoop {
-        &*self
+        self.deref()
     }
 }
 

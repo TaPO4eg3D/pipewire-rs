@@ -24,6 +24,13 @@ pub struct RegistryRc {
 }
 
 impl RegistryRc {
+    /// Create a `RegistryRc` by taking ownership of a raw `pw_registry`.
+    ///
+    /// # Safety
+    /// The provided pointer must point to a valid, well aligned [`pw_registry`](`pw_sys::pw_registry`).
+    ///
+    /// The raw registry must not be manually destroyed or moved, as the new [`RegistryRc`] takes
+    /// ownership of it.
     pub unsafe fn from_raw(
         ptr: ptr::NonNull<pw_sys::pw_registry>,
         core: crate::core::CoreRc,

@@ -1,7 +1,7 @@
 // Copyright The pipewire-rs Contributors.
 // SPDX-License-Identifier: MIT
 
-use std::{marker::PhantomData, ptr};
+use std::{marker::PhantomData, ops::Deref, ptr};
 
 use crate::core::Core;
 
@@ -14,6 +14,16 @@ pub struct RegistryBox<'c> {
 }
 
 impl<'c> RegistryBox<'c> {
+    /// Create a `RegistryBox` by taking ownership of a raw `pw_registry`.
+    ///
+    /// # Safety
+    /// The provided pointer must point to a valid, well aligned [`pw_registry`](`pw_sys::pw_registry`).
+    ///
+    /// The raw registry must not be manually destroyed or moved, as the new [`RegistryBox`] takes
+    /// ownership of it.
+    ///
+    /// The lifetime of the returned box is unbounded. The caller is responsible to make sure
+    /// that the core used with this registry outlives the registry.
     pub unsafe fn from_raw(ptr: ptr::NonNull<pw_sys::pw_registry>) -> Self {
         Self {
             ptr,
@@ -32,7 +42,7 @@ impl<'c> std::ops::Deref for RegistryBox<'c> {
 
 impl<'c> AsRef<Registry> for RegistryBox<'c> {
     fn as_ref(&self) -> &Registry {
-        &*self
+        self.deref()
     }
 }
 

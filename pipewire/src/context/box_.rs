@@ -29,6 +29,16 @@ impl<'l> ContextBox<'l> {
         }
     }
 
+    /// Create a `ContextBox` by taking ownership of a raw `pw_context`.
+    ///
+    /// # Safety
+    /// The provided pointer must point to a valid, well aligned [`pw_context`](`pw_sys::pw_context`).
+    ///
+    /// The raw context must not be manually destroyed or moved, as the new [`ContextBox`] takes
+    /// ownership of it.
+    ///
+    /// The lifetime of the returned box is unbounded. The caller is responsible to make sure
+    /// that the loop used with this context outlives the context.
     pub unsafe fn from_raw(raw: std::ptr::NonNull<pw_sys::pw_context>) -> ContextBox<'l> {
         Self {
             ptr: raw,

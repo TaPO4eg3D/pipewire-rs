@@ -14,6 +14,16 @@ pub struct CoreBox<'c> {
 }
 
 impl<'c> CoreBox<'c> {
+    /// Create a `CoreBox` by taking ownership of a raw `pw_core`.
+    ///
+    /// # Safety
+    /// The provided pointer must point to a valid, well aligned [`pw_core`](`pw_sys::pw_core`).
+    ///
+    /// The raw core must not be manually destroyed or moved, as the new [`CoreBox`] takes
+    /// ownership of it.
+    ///
+    /// The lifetime of the returned box is unbounded. The caller is responsible to make sure
+    /// that the context used with this core outlives the core.
     pub unsafe fn from_raw(raw: std::ptr::NonNull<pw_sys::pw_core>) -> CoreBox<'c> {
         Self {
             ptr: raw,
