@@ -13,7 +13,7 @@
 // ignored because https://gitlab.freedesktop.org/pipewire/pipewire-rs/-/issues/19
 //! ```no_run
 //! use std::{time::Duration, sync::mpsc, thread};
-//! use pipewire::main_loop::MainLoop;
+//! use pipewire::main_loop::MainLoopRc;
 //!
 //! // Our message to the pipewire loop, this tells it to terminate.
 //! struct Terminate;
@@ -42,7 +42,7 @@
 //!     main_sender: mpsc::Sender<String>,
 //!     pw_receiver: pipewire::channel::Receiver<Terminate>
 //! ) {
-//!     let mainloop = MainLoop::new(None).expect("Failed to create main loop");
+//!     let mainloop = MainLoopRc::new(None).expect("Failed to create main loop");
 //!
 //!     // When we receive a `Terminate` message, quit the main loop.
 //!     let _receiver = pw_receiver.attach(mainloop.loop_(), {

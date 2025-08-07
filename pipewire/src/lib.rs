@@ -18,13 +18,12 @@
 //! - Optionally, a [`Registry`](`registry::Registry`) that can be used to manage and track available objects on the server.
 //!
 //! This is how they can be created:
-// ignored because https://gitlab.freedesktop.org/pipewire/pipewire-rs/-/issues/19
 //! ```no_run
-//! use pipewire::{main_loop::MainLoop, context::Context};
+//! use pipewire::{main_loop::MainLoopBox, context::ContextBox};
 //!
 //! fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     let mainloop = MainLoop::new(None)?;
-//!     let context = Context::new(&mainloop)?;
+//!     let mainloop = MainLoopBox::new(None)?;
+//!     let context = ContextBox::new(&mainloop.loop_(), None)?;
 //!     let core = context.connect(None)?;
 //!     let registry = core.get_registry()?;
 //!
@@ -32,14 +31,37 @@
 //! }
 //! ```
 //!
-//! Now you can start hooking up different kinds of callbacks to the objects to react to events, and call methods
-//! on objects to change the state of the remote.
+//! The example above uses [`std::boxed::Box`]-like smart pointers to create the needed objects.
+//! Those boxes use lifetimes to ensure the objects dependencies (e.g. `Core` depends on `MainLoop`)
+//! outlive the object itself.
+//! If more flexibility is needed, [`std::rc::Rc`]-like reference-counting smart pointers also exist.
+//! Those will automatically keep the objects dependencies alive until the object is destroyed.
+//!
+//! Both of these kinds of types will automatically dereference to non-owning references for shared
+//! functionality, e.g. [`&MainLoop`](`main_loop::MainLoop`) or [`&Core`](`core::Core`).
+//!
+//! The same example as above, but using `Rc` types:
 //! ```no_run
-//! use pipewire::{main_loop::MainLoop, context::Context};
+//! use pipewire::{main_loop::MainLoopRc, context::ContextRc};
 //!
 //! fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     let mainloop = MainLoop::new(None)?;
-//!     let context = Context::new(&mainloop)?;
+//!     let mainloop = MainLoopRc::new(None)?;
+//!     let context = ContextRc::new(&mainloop, None)?;
+//!     let core = context.connect_rc(None)?;
+//!     let registry = core.get_registry_rc()?;
+//!
+//!     Ok(())
+//! }
+//! ```
+//!
+//! Once the needed objects are created, you can start hooking up different kinds of callbacks to
+//! them to react to events, and call methods to change the state of the remote.
+//! ```no_run
+//! use pipewire::{main_loop::MainLoopBox, context::ContextBox};
+//!
+//! fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     let mainloop = MainLoopBox::new(None)?;
+//!     let context = ContextBox::new(&mainloop.loop_(), None)?;
 //!     let core = context.connect(None)?;
 //!     let registry = core.get_registry()?;
 //!
@@ -77,11 +99,11 @@
 //! For example, we can call a function on an interval:
 //!
 //! ```no_run
-//! use pipewire::main_loop::MainLoop;
+//! use pipewire::main_loop::MainLoopBox;
 //! use std::time::Duration;
 //!
 //! fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     let mainloop = MainLoop::new(None)?;
+//!     let mainloop = MainLoopBox::new(None)?;
 //!
 //!     let timer = mainloop.loop_().add_timer(|_| println!("Hello"));
 //!     // Call the first time in half a second, and then in a one second interval.
