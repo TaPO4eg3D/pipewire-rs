@@ -75,7 +75,7 @@ pub fn main() -> Result<(), pw::Error> {
     // uncomment if you want to capture from the sink monitor ports
     // props.insert(*pw::keys::STREAM_CAPTURE_SINK, "true");
 
-    let stream = pw::stream::Stream::new(&core, "audio-capture", props)?;
+    let stream = pw::stream::StreamBox::new(&core, "audio-capture", props)?;
 
     let _listener = stream
         .add_local_listener_with_user_data(data)
