@@ -9,7 +9,7 @@ variables:
   FDO_UPSTREAM_REPO: 'pipewire/pipewire-rs'
 
 # ci-templates as of Jan 11th 2022
-.templates_sha: &templates_sha 34039cd573a2df832d465bc9e4c5f543571f5241
+.templates_sha: &templates_sha c7c20a7efb11ec9e773519bcf9180b4a329e9aa3
 
 include:
   - project: 'freedesktop/ci-templates'
@@ -19,8 +19,8 @@ include:
 .fedora:
   variables:
     # Update this tag when you want to trigger a rebuild
-    BASE_TAG: '2024-04-12.0'
-    FDO_DISTRIBUTION_VERSION: '39'
+    BASE_TAG: '2025-08-09.0'
+    FDO_DISTRIBUTION_VERSION: '42'
     # wget: required by install-rust.sh
     # openssl-devel, perl-FindBin: required to build cargo tools
     # make: required to build cargo tools
