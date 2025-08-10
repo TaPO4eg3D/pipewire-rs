@@ -102,6 +102,12 @@ test-stable-arm:
   stage: test
 
 miri:
+  rules:
+    # Disable the Miri job for now. The Job fails instantly with the following error.
+    #
+    # Preparing a sysroot for Miri (target: x86_64-unknown-linux-gnu)...
+    # fatal error: failed to build sysroot: detected a concurrent sysroot build with different settings
+    - when: never
   extends:
     - .fedora-x86
     - .fdo.distribution-image@fedora
