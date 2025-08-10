@@ -4,6 +4,7 @@
 #[allow(non_upper_case_globals)]
 #[allow(non_camel_case_types)]
 #[allow(non_snake_case)]
+#[allow(unpredictable_function_pointer_comparisons)]
 #[allow(clippy::all)]
 /// bindgen-generated definitions
 mod bindings {
