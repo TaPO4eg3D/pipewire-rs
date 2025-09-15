@@ -23,8 +23,8 @@ nom = "8.0.0"
 convert_case = "0.8.0"
 
 [dev-dependencies]
-pipewire-sys = { version = "0.8", path = "../pipewire-sys" }
-pipewire = { version = "0.8", path = "../pipewire" }
+pipewire-sys = { version = "0.9", path = "../pipewire-sys" }
+pipewire = { version = "0.9", path = "../pipewire" }
 
 [build-dependencies]
 system-deps = "7.0.5"
