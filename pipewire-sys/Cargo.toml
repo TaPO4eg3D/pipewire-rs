@@ -15,7 +15,7 @@ documentation = "https://pipewire.pages.freedesktop.org/pipewire-rs/pipewire_sys
 keywords = ["ffi", "pipewire", "multimedia", "audio", "video"]
 
 [dependencies]
-spa_sys = { package = "libspa-sys", version = "0.8", path = "../libspa-sys" }
+spa_sys = { package = "libspa-sys", version = "0.9", path = "../libspa-sys" }
 
 [build-dependencies]
 bindgen = { version = "0.72.0", default-features = false, features = ["runtime"] }
