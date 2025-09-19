@@ -636,7 +636,7 @@ mod tests {
             &313u32.to_ne_bytes(), // fraction num 313
             &131u32.to_ne_bytes(), // fraction denom 131
         ];
-        let pod: Vec<u8> = pod.iter().flat_map(|f| (*f)).copied().collect();
+        let pod: Vec<u8> = pod.iter().flat_map(|f| *f).copied().collect();
 
         let mut parser = Parser::new(&pod);
 
