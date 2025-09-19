@@ -134,7 +134,7 @@ impl Loop {
     ///
     /// The returned IoSource needs to take ownership of the IO object, but will provide a reference to the callback when called.
     #[must_use]
-    pub fn add_io<I, F>(&self, io: I, event_mask: IoFlags, callback: F) -> IoSource<I>
+    pub fn add_io<I, F>(&self, io: I, event_mask: IoFlags, callback: F) -> IoSource<'_, I>
     where
         I: AsRawFd,
         F: Fn(&mut I) + 'static,
@@ -183,7 +183,7 @@ impl Loop {
     /// This can be enabled and disabled as needed with the `enabled` parameter,
     /// and also with the `enable` method on the returned source.
     #[must_use]
-    pub fn add_idle<F>(&self, enabled: bool, callback: F) -> IdleSource
+    pub fn add_idle<F>(&self, enabled: bool, callback: F) -> IdleSource<'_>
     where
         F: Fn() + 'static,
     {
@@ -225,7 +225,7 @@ impl Loop {
     ///
     /// For example, this can be used to quit the loop when the process receives the `SIGTERM` signal.
     #[must_use]
-    pub fn add_signal_local<F>(&self, signal: Signal, callback: F) -> SignalSource
+    pub fn add_signal_local<F>(&self, signal: Signal, callback: F) -> SignalSource<'_>
     where
         F: Fn() + 'static,
         Self: Sized,
@@ -270,7 +270,7 @@ impl Loop {
     ///
     /// The returned [`EventSource`] can be used to trigger the event.
     #[must_use]
-    pub fn add_event<F>(&self, callback: F) -> EventSource
+    pub fn add_event<F>(&self, callback: F) -> EventSource<'_>
     where
         F: Fn() + 'static,
         Self: Sized,
@@ -313,7 +313,7 @@ impl Loop {
     ///
     /// The callback will be provided with the number of timer expirations since the callback was last called.
     #[must_use]
-    pub fn add_timer<F>(&self, callback: F) -> TimerSource
+    pub fn add_timer<F>(&self, callback: F) -> TimerSource<'_>
     where
         F: Fn(u64) + 'static,
         Self: Sized,

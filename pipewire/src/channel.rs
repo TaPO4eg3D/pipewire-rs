@@ -84,7 +84,7 @@ impl<T: 'static> Receiver<T> {
     ///
     /// This will make the loop call the callback with any messages that get sent to the receiver.
     #[must_use]
-    pub fn attach<F>(self, loop_: &Loop, callback: F) -> AttachedReceiver<T>
+    pub fn attach<F>(self, loop_: &Loop, callback: F) -> AttachedReceiver<'_, T>
     where
         F: Fn(T) + 'static,
     {

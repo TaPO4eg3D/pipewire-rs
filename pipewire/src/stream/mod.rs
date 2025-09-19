@@ -155,7 +155,7 @@ impl Stream {
         pw_sys::pw_stream_dequeue_buffer(self.as_raw_ptr())
     }
 
-    pub fn dequeue_buffer(&self) -> Option<Buffer> {
+    pub fn dequeue_buffer(&self) -> Option<Buffer<'_>> {
         unsafe { Buffer::from_raw(self.dequeue_raw_buffer(), self) }
     }
 

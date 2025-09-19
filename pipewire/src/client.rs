@@ -47,7 +47,7 @@ impl ProxyT for Client {
 impl Client {
     // TODO: add non-local version when we'll bind pw_thread_loop_start()
     #[must_use]
-    pub fn add_listener_local(&self) -> ClientListenerLocalBuilder {
+    pub fn add_listener_local(&self) -> ClientListenerLocalBuilder<'_> {
         ClientListenerLocalBuilder {
             client: self,
             cbs: ListenerLocalCallbacks::default(),

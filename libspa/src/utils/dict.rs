@@ -28,7 +28,7 @@ impl DictRef {
     /// An iterator over all key-value pairs as `(&CStr, &CStr)` tuples.
     ///
     /// Use [`iter`](Self::iter) to iterate over all valid utf-8 pairs as (&str, &str) tuples instead.
-    pub fn iter_cstr(&self) -> CIter {
+    pub fn iter_cstr(&self) -> CIter<'_> {
         let items = if self.0.items.is_null() {
             &[]
         } else {
@@ -43,7 +43,7 @@ impl DictRef {
 
     /// An iterator over all key-value pairs that are valid utf-8.
     /// The iterator element type is `(&str, &str)`.
-    pub fn iter(&self) -> Iter {
+    pub fn iter(&self) -> Iter<'_> {
         Iter {
             inner: self.iter_cstr(),
         }
@@ -51,7 +51,7 @@ impl DictRef {
 
     /// An iterator over all keys that are valid utf-8.
     /// The iterator element type is &str.
-    pub fn keys(&self) -> Keys {
+    pub fn keys(&self) -> Keys<'_> {
         Keys {
             inner: self.iter_cstr(),
         }
@@ -59,7 +59,7 @@ impl DictRef {
 
     /// An iterator over all values that are valid utf-8.
     /// The iterator element type is &str.
-    pub fn values(&self) -> Values {
+    pub fn values(&self) -> Values<'_> {
         Values {
             inner: self.iter_cstr(),
         }

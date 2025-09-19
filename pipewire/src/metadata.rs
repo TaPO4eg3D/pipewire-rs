@@ -43,7 +43,7 @@ impl ProxyT for Metadata {
 }
 
 impl Metadata {
-    pub fn add_listener_local(&self) -> MetadataListenerLocalBuilder {
+    pub fn add_listener_local(&self) -> MetadataListenerLocalBuilder<'_> {
         MetadataListenerLocalBuilder {
             metadata: self,
             cbs: ListenerLocalCallbacks::default(),

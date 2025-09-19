@@ -23,7 +23,7 @@ impl Proxy {
         self.ptr.as_ptr()
     }
 
-    pub fn add_listener_local(&self) -> ProxyListenerLocalBuilder {
+    pub fn add_listener_local(&self) -> ProxyListenerLocalBuilder<'_> {
         ProxyListenerLocalBuilder {
             proxy: self,
             cbs: ListenerLocalCallbacks::default(),

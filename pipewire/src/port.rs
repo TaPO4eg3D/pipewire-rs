@@ -22,7 +22,7 @@ pub struct Port {
 impl Port {
     // TODO: add non-local version when we'll bind pw_thread_loop_start()
     #[must_use]
-    pub fn add_listener_local(&self) -> PortListenerLocalBuilder {
+    pub fn add_listener_local(&self) -> PortListenerLocalBuilder<'_> {
         PortListenerLocalBuilder {
             port: self,
             cbs: ListenerLocalCallbacks::default(),

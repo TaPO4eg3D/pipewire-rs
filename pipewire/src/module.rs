@@ -43,7 +43,7 @@ impl ProxyT for Module {
 impl Module {
     // TODO: add non-local version when we'll bind pw_thread_loop_start()
     #[must_use]
-    pub fn add_listener_local(&self) -> ModuleListenerLocalBuilder {
+    pub fn add_listener_local(&self) -> ModuleListenerLocalBuilder<'_> {
         ModuleListenerLocalBuilder {
             module: self,
             cbs: ListenerLocalCallbacks::default(),

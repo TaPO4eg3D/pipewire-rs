@@ -43,7 +43,7 @@ impl ThreadLoop {
     /// uses an object associated with this loop. Make sure to not hold
     /// on to the lock more than necessary though, as the threaded loop stops
     /// while the lock is held.
-    pub fn lock(&self) -> ThreadLoopLockGuard {
+    pub fn lock(&self) -> ThreadLoopLockGuard<'_> {
         ThreadLoopLockGuard::new(self)
     }
 

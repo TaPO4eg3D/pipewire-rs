@@ -41,14 +41,14 @@ impl Core {
 
     // TODO: add non-local version when we'll bind pw_thread_loop_start()
     #[must_use]
-    pub fn add_listener_local(&self) -> ListenerLocalBuilder {
+    pub fn add_listener_local(&self) -> ListenerLocalBuilder<'_> {
         ListenerLocalBuilder {
             core: self,
             cbs: ListenerLocalCallbacks::default(),
         }
     }
 
-    pub fn get_registry(&self) -> Result<RegistryBox, Error> {
+    pub fn get_registry(&self) -> Result<RegistryBox<'_>, Error> {
         unsafe {
             let registry = spa_interface_call_method!(
                 self.as_raw_ptr(),

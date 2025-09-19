@@ -22,7 +22,7 @@ pub struct Node {
 impl Node {
     // TODO: add non-local version when we'll bind pw_thread_loop_start()
     #[must_use]
-    pub fn add_listener_local(&self) -> NodeListenerLocalBuilder {
+    pub fn add_listener_local(&self) -> NodeListenerLocalBuilder<'_> {
         NodeListenerLocalBuilder {
             node: self,
             cbs: ListenerLocalCallbacks::default(),
@@ -158,7 +158,7 @@ impl NodeInfoRef {
         self.0.n_output_ports
     }
 
-    pub fn state(&self) -> NodeState {
+    pub fn state(&self) -> NodeState<'_> {
         let raw_state = self.0.state;
         match raw_state {
             pw_sys::pw_node_state_PW_NODE_STATE_ERROR => {

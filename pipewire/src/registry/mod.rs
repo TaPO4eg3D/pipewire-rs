@@ -37,7 +37,7 @@ impl Registry {
 
     // TODO: add non-local version when we'll bind pw_thread_loop_start()
     #[must_use]
-    pub fn add_listener_local(&self) -> ListenerLocalBuilder {
+    pub fn add_listener_local(&self) -> ListenerLocalBuilder<'_> {
         ListenerLocalBuilder {
             registry: self,
             cbs: ListenerLocalCallbacks::default(),

@@ -43,7 +43,7 @@ impl ProxyT for Factory {
 impl Factory {
     // TODO: add non-local version when we'll bind pw_thread_loop_start()
     #[must_use]
-    pub fn add_listener_local(&self) -> FactoryListenerLocalBuilder {
+    pub fn add_listener_local(&self) -> FactoryListenerLocalBuilder<'_> {
         FactoryListenerLocalBuilder {
             factory: self,
             cbs: ListenerLocalCallbacks::default(),

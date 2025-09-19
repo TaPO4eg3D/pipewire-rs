@@ -21,7 +21,7 @@ pub struct Device {
 impl Device {
     // TODO: add non-local version when we'll bind pw_thread_loop_start()
     #[must_use]
-    pub fn add_listener_local(&self) -> DeviceListenerLocalBuilder {
+    pub fn add_listener_local(&self) -> DeviceListenerLocalBuilder<'_> {
         DeviceListenerLocalBuilder {
             device: self,
             cbs: ListenerLocalCallbacks::default(),
