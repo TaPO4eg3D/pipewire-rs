@@ -580,6 +580,11 @@ macro_rules! __builder_add__ {
         }
     ) => {
         'outer: {
+            // Ensure that $builder expansion doesn't contain unsafe code without an unsafe block.
+            if false {
+                let _ = $builder;
+            }
+
             let mut frame: ::std::mem::MaybeUninit<$crate::sys::spa_pod_frame> = ::std::mem::MaybeUninit::uninit();
             let res = unsafe { $crate::pod::builder::Builder::push_struct($builder, &mut frame) };
             if res.is_err() {
@@ -605,6 +610,13 @@ macro_rules! __builder_add__ {
         }
     ) => {
         'outer: {
+            // Ensure that argument expansion doesn't contain unsafe code without an unsafe block.
+            if false {
+                let _ = $builder;
+                let _ = $type_;
+                let _ = $id;
+            }
+
             let mut frame: ::std::mem::MaybeUninit<$crate::sys::spa_pod_frame> = ::std::mem::MaybeUninit::uninit();
             let res = unsafe { $crate::pod::builder::Builder::push_object($builder, &mut frame, $type_, $id) };
             if res.is_err() {
