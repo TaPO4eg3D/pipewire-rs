@@ -371,7 +371,7 @@ macro_rules! static_dict {
         use $crate::utils::dict::{spa_dict_item, StaticDict, Flags};
         use std::ptr;
 
-        static mut ITEMS: &[spa_dict_item] = &[
+        static mut ITEMS: *const [spa_dict_item] = &[
             $(
                 spa_dict_item {
                     key: concat!($k, "\0").as_ptr() as *const std::os::raw::c_char,
@@ -384,7 +384,7 @@ macro_rules! static_dict {
             spa_sys::spa_dict {
                 flags: Flags::empty().bits(),
                 n_items: ITEMS.len() as u32,
-                items: ITEMS.as_ptr(),
+                items: ITEMS as *const spa_dict_item,
             }
         };
 
