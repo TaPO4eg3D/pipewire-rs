@@ -45,6 +45,16 @@ impl<'c> StreamBox<'c> {
         }
     }
 
+    /// Create a [`StreamBox`] by taking ownership of a raw [`pw_stream`](`pw_sys::pw_stream`).
+    ///
+    /// # Safety
+    /// The provided pointer must point to a valid, well aligned [`pw_stream`](`pw_sys::pw_stream`).
+    ///
+    /// The raw stream must not be manually destroyed or moved, as the new [`StreamBox`] takes
+    /// ownership of it.
+    ///
+    /// The lifetime of the returned box is unbounded. The caller is responsible to make sure
+    /// that the `core` used with this stream outlives the stream.
     pub unsafe fn from_raw(raw: ptr::NonNull<pw_sys::pw_stream>) -> StreamBox<'c> {
         Self {
             ptr: raw,
