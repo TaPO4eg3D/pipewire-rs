@@ -11,8 +11,6 @@ use pw::{properties::properties, spa};
 use spa::param::format::{MediaSubtype, MediaType};
 use spa::param::format_utils;
 use spa::pod::Pod;
-#[cfg(feature = "v0_3_44")]
-use spa::WritableDict;
 use std::convert::TryInto;
 use std::mem;
 
