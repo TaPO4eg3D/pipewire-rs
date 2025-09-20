@@ -5,6 +5,7 @@
 #[allow(non_camel_case_types)]
 #[allow(non_snake_case)]
 #[allow(unpredictable_function_pointer_comparisons)]
+#[allow(unnecessary_transmutes)]
 #[allow(clippy::all)]
 mod bindings {
     include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
