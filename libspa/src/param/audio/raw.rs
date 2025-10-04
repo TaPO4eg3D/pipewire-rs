@@ -29,7 +29,7 @@ impl AudioInfoRaw {
             flags: AudioInfoRawFlags::UNPOSITIONED.bits(),
             rate: 0,
             channels: 0,
-            position: [0; 64usize],
+            position: [0; spa_sys::SPA_AUDIO_MAX_CHANNELS as usize],
         })
     }
 
@@ -65,7 +65,7 @@ impl AudioInfoRaw {
         self.0.channels
     }
 
-    pub fn set_position(&mut self, position: [u32; 64usize]) {
+    pub fn set_position(&mut self, position: [u32; spa_sys::SPA_AUDIO_MAX_CHANNELS as usize]) {
         self.0.position = position;
         if position[0] == 0 {
             self.0.flags |= AudioInfoRawFlags::UNPOSITIONED.bits();
@@ -74,7 +74,7 @@ impl AudioInfoRaw {
         };
     }
 
-    pub fn position(&self) -> [u32; 64usize] {
+    pub fn position(&self) -> [u32; spa_sys::SPA_AUDIO_MAX_CHANNELS as usize] {
         self.0.position
     }
 
