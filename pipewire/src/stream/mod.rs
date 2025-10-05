@@ -168,7 +168,7 @@ impl Stream {
     /// # Safety
     ///
     /// The buffer pointer should be one obtained from this stream instance by
-    /// a call to [StreamRef::dequeue_raw_buffer()].
+    /// a call to [Self::dequeue_raw_buffer()].
     pub unsafe fn queue_raw_buffer(&self, buffer: *mut pw_sys::pw_buffer) {
         pw_sys::pw_stream_queue_buffer(self.as_raw_ptr(), buffer);
     }
