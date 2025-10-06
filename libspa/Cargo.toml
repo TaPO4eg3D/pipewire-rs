@@ -14,21 +14,21 @@ documentation = "https://pipewire.pages.freedesktop.org/pipewire-rs/libspa/"
 keywords = ["pipewire", "multimedia", "audio", "video"]
 
 [dependencies]
-spa_sys = { package = "libspa-sys", version = "0.9", path = "../libspa-sys" }
-bitflags = "2"
-libc = "0.2"
-nix = "0.30.1"
-cookie-factory = { version = "0.3.3", default-features = false, features = ["std"] }
-nom = "8.0.0"
-convert_case = "0.8.0"
+spa_sys.workspace = true
+bitflags.workspace = true
+libc.workspace = true
+nix.workspace = true
+cookie-factory = { workspace = true, features = ["std"] }
+nom.workspace = true
+convert_case.workspace = true
 
 [dev-dependencies]
-pipewire-sys = { version = "0.9", path = "../pipewire-sys" }
-pipewire = { version = "0.9", path = "../pipewire" }
+pipewire-sys.workspace = true
+pipewire.workspace = true
 
 [build-dependencies]
-system-deps = "7.0.5"
-cc = "1.0.66"
+system-deps.workspace = true
+cc.workspace = true
 
 [package.metadata.system-deps]
 libspa = { name = "libspa-0.2", version = "0.2" }

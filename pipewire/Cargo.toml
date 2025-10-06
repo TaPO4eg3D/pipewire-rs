@@ -14,19 +14,19 @@ documentation = "https://pipewire.pages.freedesktop.org/pipewire-rs/pipewire/"
 keywords = ["pipewire", "multimedia", "audio", "video"]
 
 [dependencies]
-pw_sys = { package = "pipewire-sys", version = "0.9", path = "../pipewire-sys" }
-spa_sys = { package = "libspa-sys", version = "0.9", path = "../libspa-sys" }
-spa = { package = "libspa", version = "0.9", path = "../libspa" }
-anyhow = "1"
-thiserror = "2.0.12"
-libc = "0.2"
-nix = { version = "0.30.1", features = ["signal", "fs"] }
-bitflags = "2"
-once_cell = "1.0"
+pw_sys.workspace = true
+spa_sys.workspace = true
+spa.workspace = true
+anyhow.workspace = true
+thiserror.workspace = true
+libc.workspace = true
+nix = { workspace = true, features = ["signal", "fs"] }
+bitflags.workspace = true
+once_cell.workspace = true
 
 [dev-dependencies]
-clap = { version = "4.3.2", features = ["derive"] }
-once_cell = "1.5"
+clap = { workspace = true, features = ["derive"] }
+once_cell.workspace = true
 
 [features]
 v0_3_32 = []

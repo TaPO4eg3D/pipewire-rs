@@ -17,9 +17,9 @@ keywords = ["ffi", "pipewire", "multimedia", "audio", "video"]
 [dependencies]
 
 [build-dependencies]
-bindgen = { version = "0.72.0", default-features = false, features = ["experimental", "runtime"] }
-cc = "1.0"
-system-deps = "7.0.5"
+bindgen = { workspace = true, features = ["experimental", "runtime"] }
+cc.workspace = true
+system-deps.workspace = true
 
 [package.metadata.system-deps]
 libspa = { name = "libspa-0.2", version = "0.2" }
