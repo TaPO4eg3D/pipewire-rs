@@ -5,8 +5,14 @@ stages:
   - extras
   - deploy
 
+# Keep this in sync with "rust-version" in Cargo.toml and change the container
+# BASE_TAG below to trigger a container rebuld.
+# Used for installing older Rust and testing with it
+.msrv: &msrv '1.79'
+
 variables:
   FDO_UPSTREAM_REPO: 'pipewire/pipewire-rs'
+  MSRV: *msrv
 
 # ci-templates as of Jan 11th 2022
 .templates_sha: &templates_sha c7c20a7efb11ec9e773519bcf9180b4a329e9aa3
@@ -19,7 +25,7 @@ include:
 .fedora:
   variables:
     # Update this tag when you want to trigger a rebuild
-    BASE_TAG: '2025-08-09.0'
+    BASE_TAG: '2025-10-12.0'
     FDO_DISTRIBUTION_VERSION: '42'
     # wget: required by install-rust.sh
     # openssl-devel, perl-FindBin: required to build cargo tools
@@ -37,10 +43,10 @@ include:
       python3-setuptools
     FDO_DISTRIBUTION_EXEC: >-
       pip3 install git+http://gitlab.freedesktop.org/freedesktop/ci-templates &&
-      bash ci/install-rust.sh stable
+      bash ci/install-rust.sh stable $MSRV
   before_script:
     - source ./ci/env.sh
-    - mkdir .cargo && echo -e "[net]\ngit-fetch-with-cli = true" > .cargo/config
+    - mkdir .cargo && echo -e "[net]\ngit-fetch-with-cli = true" > .cargo/config.toml
 
 .fedora-x86:
   extends:
@@ -57,6 +63,7 @@ include:
 .build:
   before_script:
     - source ./ci/env.sh
+    - if [ "${RUST_VERSION:-stable}" = "stable" ]; then cargo generate-lockfile; else cargo generate-lockfile --config 'resolver.incompatible-rust-versions="fallback"'; fi;
 
 container_fedora-x86:
   extends:
@@ -81,9 +88,9 @@ rustfmt:
 
 .test-template: &test-definition
   script:
-    - rustc --version
-    - cargo build --color=always --all-targets
-    - cargo test --color=always
+    - rustc +"$RUST_VERSION" --version
+    - cargo +"$RUST_VERSION" build --color=always --all-targets --locked
+    - cargo +"$RUST_VERSION" test --color=always --locked
 
 test-stable-x86:
   extends:
@@ -92,6 +99,9 @@ test-stable-x86:
     - .build
   <<: *test-definition
   stage: test
+  parallel:
+    matrix:
+      - RUST_VERSION: ['stable', *msrv]
 
 test-stable-arm:
   extends:
@@ -100,6 +110,9 @@ test-stable-arm:
     - .build
   <<: *test-definition
   stage: test
+  parallel:
+    matrix:
+      - RUST_VERSION: ['stable', *msrv]
 
 miri:
   rules:
@@ -130,8 +143,8 @@ rustdoc:
     RUSTDOCFLAGS: '-Dwarnings'
   script:
     - rustdoc --version
-    - cargo doc -p pipewire --no-deps
-    - cargo doc -p libspa --no-deps
+    - cargo doc -p pipewire --no-deps --locked
+    - cargo doc -p libspa --no-deps --locked
 
 clippy:
   extends:
@@ -140,8 +153,8 @@ clippy:
     - .build
   stage: extras
   script:
-    - cargo clippy --version
-    - cargo clippy --color=always --all-targets -- -D warnings
+    - cargo clippy --version --locked
+    - cargo clippy --color=always --all-targets --locked -- -D warnings
 
 deny:
   extends:
@@ -181,3 +194,4 @@ pages:
   artifacts:
     paths:
       - 'public'
+

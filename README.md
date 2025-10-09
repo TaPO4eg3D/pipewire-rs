@@ -15,7 +15,7 @@
 ### **These bindings are work-in-progress. Expect frequent breakage, bugs and missing features.**
 
 ## Requirements
-- Rust 1.64 or newer
+- Rust 1.79 or newer
 - PipeWire 0.3 development files
 - Clang (see [bindgen requirements](https://rust-lang.github.io/rust-bindgen/requirements.html))
 

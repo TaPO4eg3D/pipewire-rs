@@ -14,7 +14,8 @@ edition = "2021"
 homepage = "https://pipewire.org"
 license = "MIT"
 repository = "https://gitlab.freedesktop.org/pipewire/pipewire-rs"
-rust-version = "1.77"
+# When bumping MSRV, don't forget to update it also in .gitlab-ci.yml
+rust-version = "1.79"
 version = "0.9.2"
 
 [workspace.dependencies]
