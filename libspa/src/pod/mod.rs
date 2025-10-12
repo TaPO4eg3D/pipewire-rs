@@ -13,7 +13,7 @@ pub mod parser;
 pub mod serialize;
 
 use std::{
-    ffi::c_void,
+    ffi::{c_char, c_void, CStr},
     io::{Seek, Write},
     mem::MaybeUninit,
     os::fd::RawFd,
@@ -270,7 +270,23 @@ impl Pod {
         res != 0
     }
 
-    // TODO: to_string
+    pub fn get_string_raw(&self) -> Result<Option<&CStr>, Errno> {
+        unsafe {
+            let mut value: MaybeUninit<*const c_char> = MaybeUninit::uninit();
+            let res = spa_sys::spa_pod_get_string(self.as_raw_ptr(), value.as_mut_ptr());
+
+            if res >= 0 {
+                let value = value.assume_init();
+                if value.is_null() {
+                    Ok(None)
+                } else {
+                    Ok(Some(CStr::from_ptr(value)))
+                }
+            } else {
+                Err(Errno::from_raw(-res))
+            }
+        }
+    }
 
     pub fn is_bytes(&self) -> bool {
         let res = unsafe { spa_sys::spa_pod_is_bytes(self.as_raw_ptr()) };
