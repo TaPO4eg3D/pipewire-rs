@@ -85,8 +85,7 @@ impl Loop {
 
     /// Perform one iteration of the loop.
     ///
-    /// An optional timeout can be provided.
-    /// 0 for no timeout, -1 for infinite timeout.
+    /// Timeout must be provided, see [`Timeout`].
     ///
     /// This function will block
     /// up to the provided timeout and then dispatch the fds with activity.
@@ -97,7 +96,7 @@ impl Loop {
     /// # Panics
     /// This function will panic if the provided timeout as milliseconds does not fit inside a
     /// `c_int` integer.
-    pub fn iterate(&self, timeout: std::time::Duration) -> i32 {
+    pub fn iterate(&self, timeout: Timeout) -> i32 {
         unsafe {
             self.enter();
             let res = self.iterate_unguarded(timeout);
@@ -111,13 +110,10 @@ impl Loop {
     ///
     /// # Safety
     /// Before calling this, [`Self::enter()`] must be called, and [`Self::leave()`] must be called afterwards.
-    pub unsafe fn iterate_unguarded(&self, timeout: std::time::Duration) -> i32 {
+    pub unsafe fn iterate_unguarded(&self, timeout: Timeout) -> i32 {
         let mut iface = self.as_raw().control.as_ref().unwrap().iface;
 
-        let timeout: c_int = timeout
-            .as_millis()
-            .try_into()
-            .expect("Provided timeout does not fit in a c_int");
+        let timeout: c_int = c_int::from(timeout);
 
         spa_interface_call_method!(
             &mut iface as *mut spa_sys::spa_interface,
@@ -367,6 +363,30 @@ impl Loop {
             destroy_source,
             source.as_ptr()
         )
+    }
+}
+
+/// Timeout for [`Loop::iterate()`]
+#[derive(Debug, Clone)]
+pub enum Timeout {
+    None,
+    Infinite,
+    Finite(Duration),
+}
+
+impl From<Timeout> for c_int {
+    /// # Panics
+    /// This function will panic if the provided timeout as milliseconds does not fit inside a
+    /// `c_int` integer.
+    fn from(value: Timeout) -> Self {
+        match value {
+            Timeout::None => 0,
+            Timeout::Infinite => -1,
+            Timeout::Finite(duration) => duration
+                .as_millis()
+                .try_into()
+                .expect("Provided timeout does not fit in a c_int"),
+        }
     }
 }
 
