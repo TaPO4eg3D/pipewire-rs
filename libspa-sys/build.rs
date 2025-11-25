@@ -26,8 +26,13 @@ fn main() {
         .allowlist_function("spa_.*")
         .allowlist_type("spa_.*")
         .allowlist_var("SPA_.*")
+        // These are meant for constructing C structs
+        // and the generated bindings are wrong
+        .blocklist_var("SPA_AUDIO_LAYOUT_.*")
         .prepend_enum_name(false)
         .derive_eq(true)
+        // Some definitions are missing from the generated bindings without this
+        .clang_macro_fallback()
         // Create callable wrapper functions around SPAs `static inline` functions so they
         // can be called via FFI
         .wrap_static_fns(true)
