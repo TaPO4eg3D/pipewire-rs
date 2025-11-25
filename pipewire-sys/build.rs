@@ -26,7 +26,9 @@ fn main() {
         .blocklist_function("spa_.*")
         .blocklist_type("spa_.*")
         .blocklist_item("spa_.*")
-        .raw_line("use spa_sys::*;");
+        .raw_line("use spa_sys::*;")
+        // Some definitions are missing from the generated bindings without this
+        .clang_macro_fallback();
 
     let builder = libpipewire
         .include_paths
