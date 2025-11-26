@@ -4,4 +4,4 @@
 //! Pipewire constants.
 
 /// Invalid ID that matches any object when used for permissions.
-pub const ID_ANY: u32 = 0xffffffff;
+pub const ID_ANY: u32 = pw_sys::PW_ID_ANY;
