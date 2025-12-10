@@ -113,7 +113,8 @@ impl Loop {
     pub unsafe fn iterate_unguarded(&self, timeout: Timeout) -> i32 {
         let mut iface = self.as_raw().control.as_ref().unwrap().iface;
 
-        let timeout: c_int = c_int::from(timeout);
+        let timeout: c_int =
+            c_int::try_from(timeout).expect("Provided timeout does not fit in a c_int");
 
         spa_interface_call_method!(
             &mut iface as *mut spa_sys::spa_interface,
@@ -374,18 +375,16 @@ pub enum Timeout {
     Finite(Duration),
 }
 
-impl From<Timeout> for c_int {
-    /// # Panics
-    /// This function will panic if the provided timeout as milliseconds does not fit inside a
+impl TryFrom<Timeout> for c_int {
+    type Error = <u128 as TryInto<c_int>>::Error;
+    /// # Errors
+    /// This function will return an error if the provided timeout as milliseconds does not fit inside a
     /// `c_int` integer.
-    fn from(value: Timeout) -> Self {
+    fn try_from(value: Timeout) -> Result<Self, Self::Error> {
         match value {
-            Timeout::None => 0,
-            Timeout::Infinite => -1,
-            Timeout::Finite(duration) => duration
-                .as_millis()
-                .try_into()
-                .expect("Provided timeout does not fit in a c_int"),
+            Timeout::None => Ok(0),
+            Timeout::Infinite => Ok(-1),
+            Timeout::Finite(duration) => duration.as_millis().try_into(),
         }
     }
 }
