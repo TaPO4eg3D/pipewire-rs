@@ -97,7 +97,7 @@ pub struct VideoDamage<'a>(&'a [spa_sys::spa_meta_region]);
 
 impl<'a> VideoDamage<'a> {
     pub fn as_raw(&self) -> &[spa_sys::spa_meta_region] {
-        &self.0
+        self.0
     }
 
     /// Returns the number of damage regions
@@ -105,14 +105,18 @@ impl<'a> VideoDamage<'a> {
         self.0.len()
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
     /// Returns an iterator over the damage regions
     pub fn iter(&self) -> impl Iterator<Item = DamageRegion<'a>> + '_ {
-        self.0.iter().map(|region| DamageRegion(region))
+        self.0.iter().map(DamageRegion)
     }
 
     /// Returns the coordinates and size of the region at the given index
     pub fn region(&self, index: usize) -> Option<DamageRegion<'a>> {
-        self.0.get(index).map(|r| DamageRegion(r))
+        self.0.get(index).map(DamageRegion)
     }
 }
 
