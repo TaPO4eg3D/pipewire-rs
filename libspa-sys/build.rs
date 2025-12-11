@@ -26,8 +26,13 @@ fn main() {
         .allowlist_function("spa_.*")
         .allowlist_type("spa_.*")
         .allowlist_var("SPA_.*")
+        // These are meant for constructing C structs
+        // and the generated bindings are wrong
+        .blocklist_var("SPA_AUDIO_LAYOUT_.*")
         .prepend_enum_name(false)
         .derive_eq(true)
+        // Some definitions are missing from the generated bindings without this
+        .clang_macro_fallback()
         // Create callable wrapper functions around SPAs `static inline` functions so they
         // can be called via FFI
         .wrap_static_fns(true)
@@ -48,8 +53,13 @@ fn main() {
     bindings
         .write_to_file(out_path.join("bindings.rs"))
         .expect("Couldn't write bindings!");
-    const FILES: &[&str] = &["src/type-info.c"];
-    let cc_files = &[PathBuf::from(FILES[0]), out_path.join("static_fns.c")];
+    const FILES: &[&str] = &["src/type-info.c", "src/command.c", "src/node-command.c"];
+    let cc_files = &[
+        PathBuf::from(FILES[0]),
+        PathBuf::from(FILES[1]),
+        PathBuf::from(FILES[2]),
+        out_path.join("static_fns.c"),
+    ];
 
     for file in FILES {
         println!("cargo:rerun-if-changed={file}");

@@ -1,5 +1,9 @@
 # pipewire-rs
 
+> [!caution]
+> pipewire-rs is currently not actively maintained.
+> If you are interested in maintaining the project, please see https://gitlab.freedesktop.org/pipewire/pipewire-rs/-/issues/113
+
 ### Rust bindings for pipewire and SPA libraries
 
 - Documentation
@@ -11,7 +15,7 @@
 ### **These bindings are work-in-progress. Expect frequent breakage, bugs and missing features.**
 
 ## Requirements
-- Rust 1.64 or newer
+- Rust 1.79 or newer
 - PipeWire 0.3 development files
 - Clang (see [bindgen requirements](https://rust-lang.github.io/rust-bindgen/requirements.html))
 

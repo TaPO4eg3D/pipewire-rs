@@ -11,8 +11,6 @@ use pw::{properties::properties, spa};
 use spa::param::format::{MediaSubtype, MediaType};
 use spa::param::format_utils;
 use spa::pod::Pod;
-#[cfg(feature = "v0_3_44")]
-use spa::WritableDict;
 use std::convert::TryInto;
 use std::mem;
 
@@ -31,9 +29,9 @@ struct Opt {
 pub fn main() -> Result<(), pw::Error> {
     pw::init();
 
-    let mainloop = pw::main_loop::MainLoop::new(None)?;
-    let context = pw::context::Context::new(&mainloop)?;
-    let core = context.connect(None)?;
+    let mainloop = pw::main_loop::MainLoopRc::new(None)?;
+    let context = pw::context::ContextRc::new(&mainloop, None)?;
+    let core = context.connect_rc(None)?;
 
     let data = UserData {
         format: Default::default(),
@@ -75,7 +73,7 @@ pub fn main() -> Result<(), pw::Error> {
     // uncomment if you want to capture from the sink monitor ports
     // props.insert(*pw::keys::STREAM_CAPTURE_SINK, "true");
 
-    let stream = pw::stream::Stream::new(&core, "audio-capture", props)?;
+    let stream = pw::stream::StreamBox::new(&core, "audio-capture", props)?;
 
     let _listener = stream
         .add_local_listener_with_user_data(data)

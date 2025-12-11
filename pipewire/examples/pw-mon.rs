@@ -56,7 +56,7 @@ impl Proxies {
 }
 
 fn monitor(remote: Option<String>) -> Result<()> {
-    let main_loop = pw::main_loop::MainLoop::new(None)?;
+    let main_loop = pw::main_loop::MainLoopRc::new(None)?;
 
     let main_loop_weak = main_loop.downgrade();
     let _sig_int = main_loop.loop_().add_signal_local(Signal::SIGINT, move || {
@@ -73,13 +73,13 @@ fn monitor(remote: Option<String>) -> Result<()> {
             }
         });
 
-    let context = pw::context::Context::new(&main_loop)?;
+    let context = pw::context::ContextRc::new(&main_loop, None)?;
     let props = remote.map(|remote| {
         properties! {
             *pw::keys::REMOTE_NAME => remote
         }
     });
-    let core = context.connect(props)?;
+    let core = context.connect_rc(props)?;
 
     let main_loop_weak = main_loop.downgrade();
     let _listener = core
@@ -101,8 +101,8 @@ fn monitor(remote: Option<String>) -> Result<()> {
         })
         .register();
 
-    let registry = Rc::new(core.get_registry()?);
-    let registry_weak = Rc::downgrade(&registry);
+    let registry = core.get_registry_rc()?;
+    let registry_weak = registry.downgrade();
 
     // Proxies and their listeners need to stay alive so store them here
     let proxies = Rc::new(RefCell::new(Proxies::new()));

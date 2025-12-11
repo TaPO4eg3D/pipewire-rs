@@ -517,6 +517,11 @@ macro_rules! __parser_get__ {
     };
     ($parser:expr, Struct { $( $field_type:tt $field:tt ),* $(,)? }) => {
         'outer: {
+            // Ensure that $parser expansion doesn't contain unsafe code without an unsafe block.
+            if false {
+                let _ = $parser;
+            }
+
             let mut frame: ::std::mem::MaybeUninit<$crate::sys::spa_pod_frame> = ::std::mem::MaybeUninit::uninit();
             let res = unsafe { $crate::pod::parser::Parser::push_struct($parser, &mut frame) };
             if res.is_err() {
@@ -636,7 +641,7 @@ mod tests {
             &313u32.to_ne_bytes(), // fraction num 313
             &131u32.to_ne_bytes(), // fraction denom 131
         ];
-        let pod: Vec<u8> = pod.iter().flat_map(|f| (*f)).copied().collect();
+        let pod: Vec<u8> = pod.iter().flat_map(|f| *f).copied().collect();
 
         let mut parser = Parser::new(&pod);
 

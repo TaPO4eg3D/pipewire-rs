@@ -42,7 +42,7 @@ impl ProxyT for Link {
 
 impl Link {
     #[must_use]
-    pub fn add_listener_local(&self) -> LinkListenerLocalBuilder {
+    pub fn add_listener_local(&self) -> LinkListenerLocalBuilder<'_> {
         LinkListenerLocalBuilder {
             link: self,
             cbs: ListenerLocalCallbacks::default(),
@@ -170,7 +170,7 @@ impl LinkInfoRef {
         self.0.input_port_id
     }
 
-    pub fn state(&self) -> LinkState {
+    pub fn state(&self) -> LinkState<'_> {
         let raw_state = self.0.state;
         match raw_state {
             pw_sys::pw_link_state_PW_LINK_STATE_ERROR => {

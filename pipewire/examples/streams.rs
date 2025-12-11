@@ -27,15 +27,15 @@ pub fn main() -> Result<(), pw::Error> {
 
     let opt = Opt::parse();
 
-    let mainloop = pw::main_loop::MainLoop::new(None)?;
-    let context = pw::context::Context::new(&mainloop)?;
-    let core = context.connect(None)?;
+    let mainloop = pw::main_loop::MainLoopRc::new(None)?;
+    let context = pw::context::ContextRc::new(&mainloop, None)?;
+    let core = context.connect_rc(None)?;
 
     let data = UserData {
         format: Default::default(),
     };
 
-    let stream = pw::stream::Stream::new(
+    let stream = pw::stream::StreamBox::new(
         &core,
         "video-test",
         properties! {

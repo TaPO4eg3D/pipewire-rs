@@ -4,11 +4,7 @@
 //! Pipewire Stream
 
 use crate::buffer::Buffer;
-use crate::{
-    core::Core,
-    error::Error,
-    properties::{Properties, PropertiesRef},
-};
+use crate::{error::Error, properties::Properties};
 use bitflags::bitflags;
 use spa::utils::result::SpaResult;
 use std::{
@@ -18,6 +14,11 @@ use std::{
     pin::Pin,
     ptr,
 };
+
+mod box_;
+pub use box_::*;
+mod rc;
+pub use rc::*;
 
 #[derive(Debug, PartialEq)]
 pub enum StreamState {
@@ -52,79 +53,10 @@ impl StreamState {
 /// level abstraction around nodes in the graph. A stream can be used to send or
 /// receive frames of audio or video data by connecting it to another node.
 /// `D` is the user data, to allow passing extra context to the callbacks.
-pub struct Stream {
-    ptr: ptr::NonNull<pw_sys::pw_stream>,
-    // objects that need to stay alive while the Stream is
-    _core: Core,
-}
+#[repr(transparent)]
+pub struct Stream(pw_sys::pw_stream);
 
 impl Stream {
-    /// Create a [`Stream`]
-    ///
-    /// Initialises a new stream with the given `name` and `properties`.
-    pub fn new(core: &Core, name: &str, properties: Properties) -> Result<Self, Error> {
-        let name = CString::new(name).expect("Invalid byte in stream name");
-
-        let c_str = name.as_c_str();
-        Stream::new_cstr(core, c_str, properties)
-    }
-
-    /// Initialises a new stream with the given `name` as Cstr and `properties`.
-    pub fn new_cstr(core: &Core, name: &CStr, properties: Properties) -> Result<Self, Error> {
-        let stream = unsafe {
-            pw_sys::pw_stream_new(core.as_raw_ptr(), name.as_ptr(), properties.into_raw())
-        };
-        let stream = ptr::NonNull::new(stream).ok_or(Error::CreationFailed)?;
-
-        Ok(Stream {
-            ptr: stream,
-            _core: core.clone(),
-        })
-    }
-
-    pub fn into_raw(self) -> *mut pw_sys::pw_stream {
-        let mut this = std::mem::ManuallyDrop::new(self);
-
-        // FIXME: self needs to be wrapped in ManuallyDrop so the raw stream
-        //        isn't destroyed. However, the core should still be dropped.
-        //        Is there a cleaner and safer way to drop the core than like this?
-        unsafe {
-            ptr::drop_in_place(ptr::addr_of_mut!(this._core));
-        }
-
-        this.ptr.as_ptr()
-    }
-}
-
-impl std::ops::Deref for Stream {
-    type Target = StreamRef;
-
-    fn deref(&self) -> &Self::Target {
-        unsafe { self.ptr.cast().as_ref() }
-    }
-}
-
-impl std::fmt::Debug for Stream {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Stream")
-            .field("name", &self.name())
-            .field("state", &self.state())
-            .field("node-id", &self.node_id())
-            .field("properties", &self.properties())
-            .finish()
-    }
-}
-
-impl std::ops::Drop for Stream {
-    fn drop(&mut self) {
-        unsafe { pw_sys::pw_stream_destroy(self.as_raw_ptr()) }
-    }
-}
-
-#[repr(transparent)]
-pub struct StreamRef(pw_sys::pw_stream);
-
-impl StreamRef {
     pub fn as_raw(&self) -> &pw_sys::pw_stream {
         &self.0
     }
@@ -223,7 +155,7 @@ impl StreamRef {
         pw_sys::pw_stream_dequeue_buffer(self.as_raw_ptr())
     }
 
-    pub fn dequeue_buffer(&self) -> Option<Buffer> {
+    pub fn dequeue_buffer(&self) -> Option<Buffer<'_>> {
         unsafe { Buffer::from_raw(self.dequeue_raw_buffer(), self) }
     }
 
@@ -236,7 +168,7 @@ impl StreamRef {
     /// # Safety
     ///
     /// The buffer pointer should be one obtained from this stream instance by
-    /// a call to [StreamRef::dequeue_raw_buffer()].
+    /// a call to [Self::dequeue_raw_buffer()].
     pub unsafe fn queue_raw_buffer(&self, buffer: *mut pw_sys::pw_buffer) {
         pw_sys::pw_stream_queue_buffer(self.as_raw_ptr(), buffer);
     }
@@ -257,7 +189,7 @@ impl StreamRef {
     pub fn set_error(&mut self, res: i32, error: &str) {
         let error = CString::new(error).expect("failed to convert error to CString");
         let error_cstr = error.as_c_str();
-        StreamRef::set_error_cstr(self, res, error_cstr)
+        Stream::set_error_cstr(self, res, error_cstr)
     }
 
     /// Set the stream in error state with CStr
@@ -315,7 +247,7 @@ impl StreamRef {
     }
 
     /// Get the properties of the stream.
-    pub fn properties(&self) -> &PropertiesRef {
+    pub fn properties(&self) -> &Properties {
         unsafe {
             let props = pw_sys::pw_stream_get_properties(self.as_raw_ptr());
             let props = ptr::NonNull::new(props.cast_mut()).expect("stream properties is NULL");
@@ -345,31 +277,31 @@ impl StreamRef {
     // TODO: pw_stream_get_time()
 }
 
-type ParamChangedCB<D> = dyn FnMut(&StreamRef, &mut D, u32, Option<&spa::pod::Pod>);
-type ProcessCB<D> = dyn FnMut(&StreamRef, &mut D);
+type ParamChangedCB<D> = dyn FnMut(&Stream, &mut D, u32, Option<&spa::pod::Pod>);
+type ProcessCB<D> = dyn FnMut(&Stream, &mut D);
 
 #[allow(clippy::type_complexity)]
 pub struct ListenerLocalCallbacks<D> {
-    pub state_changed: Option<Box<dyn FnMut(&StreamRef, &mut D, StreamState, StreamState)>>,
+    pub state_changed: Option<Box<dyn FnMut(&Stream, &mut D, StreamState, StreamState)>>,
     pub control_info:
-        Option<Box<dyn FnMut(&StreamRef, &mut D, u32, *const pw_sys::pw_stream_control)>>,
-    pub io_changed: Option<Box<dyn FnMut(&StreamRef, &mut D, u32, *mut os::raw::c_void, u32)>>,
+        Option<Box<dyn FnMut(&Stream, &mut D, u32, *const pw_sys::pw_stream_control)>>,
+    pub io_changed: Option<Box<dyn FnMut(&Stream, &mut D, u32, *mut os::raw::c_void, u32)>>,
     pub param_changed: Option<Box<ParamChangedCB<D>>>,
-    pub add_buffer: Option<Box<dyn FnMut(&StreamRef, &mut D, *mut pw_sys::pw_buffer)>>,
-    pub remove_buffer: Option<Box<dyn FnMut(&StreamRef, &mut D, *mut pw_sys::pw_buffer)>>,
+    pub add_buffer: Option<Box<dyn FnMut(&Stream, &mut D, *mut pw_sys::pw_buffer)>>,
+    pub remove_buffer: Option<Box<dyn FnMut(&Stream, &mut D, *mut pw_sys::pw_buffer)>>,
     pub process: Option<Box<ProcessCB<D>>>,
-    pub drained: Option<Box<dyn FnMut(&StreamRef, &mut D)>>,
+    pub drained: Option<Box<dyn FnMut(&Stream, &mut D)>>,
     #[cfg(feature = "v0_3_39")]
-    pub command: Option<Box<dyn FnMut(&StreamRef, &mut D, *const spa_sys::spa_command)>>,
+    pub command: Option<Box<dyn FnMut(&Stream, &mut D, *const spa_sys::spa_command)>>,
     #[cfg(feature = "v0_3_40")]
-    pub trigger_done: Option<Box<dyn FnMut(&StreamRef, &mut D)>>,
+    pub trigger_done: Option<Box<dyn FnMut(&Stream, &mut D)>>,
     pub user_data: D,
     stream: Option<ptr::NonNull<pw_sys::pw_stream>>,
 }
 
-unsafe fn unwrap_stream_ptr<'a>(stream: Option<ptr::NonNull<pw_sys::pw_stream>>) -> &'a StreamRef {
+unsafe fn unwrap_stream_ptr<'a>(stream: Option<ptr::NonNull<pw_sys::pw_stream>>) -> &'a Stream {
     stream
-        .map(|ptr| ptr.cast::<StreamRef>().as_ref())
+        .map(|ptr| ptr.cast::<Stream>().as_ref())
         .expect("stream cannot be null")
 }
 
@@ -574,7 +506,7 @@ impl<D> ListenerLocalCallbacks<D> {
 
 #[must_use]
 pub struct ListenerLocalBuilder<'a, D> {
-    stream: &'a StreamRef,
+    stream: &'a Stream,
     callbacks: ListenerLocalCallbacks<D>,
 }
 
@@ -582,7 +514,7 @@ impl<'a, D> ListenerLocalBuilder<'a, D> {
     /// Set the callback for the `state_changed` event.
     pub fn state_changed<F>(mut self, callback: F) -> Self
     where
-        F: FnMut(&StreamRef, &mut D, StreamState, StreamState) + 'static,
+        F: FnMut(&Stream, &mut D, StreamState, StreamState) + 'static,
     {
         self.callbacks.state_changed = Some(Box::new(callback));
         self
@@ -591,7 +523,7 @@ impl<'a, D> ListenerLocalBuilder<'a, D> {
     /// Set the callback for the `control_info` event.
     pub fn control_info<F>(mut self, callback: F) -> Self
     where
-        F: FnMut(&StreamRef, &mut D, u32, *const pw_sys::pw_stream_control) + 'static,
+        F: FnMut(&Stream, &mut D, u32, *const pw_sys::pw_stream_control) + 'static,
     {
         self.callbacks.control_info = Some(Box::new(callback));
         self
@@ -600,7 +532,7 @@ impl<'a, D> ListenerLocalBuilder<'a, D> {
     /// Set the callback for the `io_changed` event.
     pub fn io_changed<F>(mut self, callback: F) -> Self
     where
-        F: FnMut(&StreamRef, &mut D, u32, *mut os::raw::c_void, u32) + 'static,
+        F: FnMut(&Stream, &mut D, u32, *mut os::raw::c_void, u32) + 'static,
     {
         self.callbacks.io_changed = Some(Box::new(callback));
         self
@@ -609,7 +541,7 @@ impl<'a, D> ListenerLocalBuilder<'a, D> {
     /// Set the callback for the `param_changed` event.
     pub fn param_changed<F>(mut self, callback: F) -> Self
     where
-        F: FnMut(&StreamRef, &mut D, u32, Option<&spa::pod::Pod>) + 'static,
+        F: FnMut(&Stream, &mut D, u32, Option<&spa::pod::Pod>) + 'static,
     {
         self.callbacks.param_changed = Some(Box::new(callback));
         self
@@ -618,7 +550,7 @@ impl<'a, D> ListenerLocalBuilder<'a, D> {
     /// Set the callback for the `add_buffer` event.
     pub fn add_buffer<F>(mut self, callback: F) -> Self
     where
-        F: FnMut(&StreamRef, &mut D, *mut pw_sys::pw_buffer) + 'static,
+        F: FnMut(&Stream, &mut D, *mut pw_sys::pw_buffer) + 'static,
     {
         self.callbacks.add_buffer = Some(Box::new(callback));
         self
@@ -627,7 +559,7 @@ impl<'a, D> ListenerLocalBuilder<'a, D> {
     /// Set the callback for the `remove_buffer` event.
     pub fn remove_buffer<F>(mut self, callback: F) -> Self
     where
-        F: FnMut(&StreamRef, &mut D, *mut pw_sys::pw_buffer) + 'static,
+        F: FnMut(&Stream, &mut D, *mut pw_sys::pw_buffer) + 'static,
     {
         self.callbacks.remove_buffer = Some(Box::new(callback));
         self
@@ -636,7 +568,7 @@ impl<'a, D> ListenerLocalBuilder<'a, D> {
     /// Set the callback for the `process` event.
     pub fn process<F>(mut self, callback: F) -> Self
     where
-        F: FnMut(&StreamRef, &mut D) + 'static,
+        F: FnMut(&Stream, &mut D) + 'static,
     {
         self.callbacks.process = Some(Box::new(callback));
         self
@@ -645,7 +577,7 @@ impl<'a, D> ListenerLocalBuilder<'a, D> {
     /// Set the callback for the `drained` event.
     pub fn drained<F>(mut self, callback: F) -> Self
     where
-        F: FnMut(&StreamRef, &mut D) + 'static,
+        F: FnMut(&Stream, &mut D) + 'static,
     {
         self.callbacks.drained = Some(Box::new(callback));
         self
