@@ -83,11 +83,10 @@ impl Metadata for VideoCrop {
 
 pub struct DamageRegion<'a>(&'a spa_sys::spa_meta_region);
 
-impl DamageRegion<'_> {
+impl<'a> DamageRegion<'a> {
     pub fn position(&self) -> (i32, i32) {
         (self.0.region.position.x, self.0.region.position.y)
     }
-
     pub fn size(&self) -> (u32, u32) {
         (self.0.region.size.width, self.0.region.size.height)
     }
@@ -96,7 +95,7 @@ impl DamageRegion<'_> {
 #[repr(transparent)]
 pub struct VideoDamage<'a>(&'a [spa_sys::spa_meta_region]);
 
-impl VideoDamage<'_> {
+impl<'a> VideoDamage<'a> {
     pub fn as_raw(&self) -> &[spa_sys::spa_meta_region] {
         &self.0
     }
@@ -107,18 +106,13 @@ impl VideoDamage<'_> {
     }
 
     /// Returns an iterator over the damage regions
-    pub fn iter(&self) -> impl Iterator<Item = DamageRegion<'_>> {
+    pub fn iter(&self) -> impl Iterator<Item = DamageRegion<'a>> + '_ {
         self.0.iter().map(|region| DamageRegion(region))
     }
 
     /// Returns the coordinates and size of the region at the given index
-    pub fn region(&self, index: usize) -> Option<((i32, i32), (u32, u32))> {
-        self.0.get(index).map(|r| {
-            (
-                (r.region.position.x, r.region.position.y),
-                (r.region.size.width, r.region.size.height),
-            )
-        })
+    pub fn region(&self, index: usize) -> Option<DamageRegion<'a>> {
+        self.0.get(index).map(|r| DamageRegion(r))
     }
 }
 
