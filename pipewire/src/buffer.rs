@@ -1,6 +1,7 @@
 use super::stream::Stream;
 
-use spa::buffer::{Data, Metadata};
+use spa::buffer::meta::Metadata;
+use spa::buffer::Data;
 use std::convert::TryFrom;
 use std::ptr::NonNull;
 
@@ -50,14 +51,11 @@ impl Buffer<'_> {
                     std::mem::size_of::<T>(),
                 ) as *const T;
                 if !meta_data.is_null() {
-                    Some(&*meta_data)
-                } else {
-                    None
+                    return Some(&*meta_data);
                 }
             }
-        } else {
-            None
         }
+        None
     }
 
     #[cfg(feature = "v0_3_49")]
