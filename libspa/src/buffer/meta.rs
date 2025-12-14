@@ -1,7 +1,5 @@
-use spa_sys::spa_meta_busy;
-
 use crate::param::video::VideoFormat;
-use crate::utils::Rectangle;
+use crate::utils::{Point, Rectangle};
 
 pub trait Metadata {
     const META_TYPE: u32;
@@ -66,14 +64,18 @@ impl VideoCrop {
         &self.0
     }
 
-    /// Returns the coordinates of the region as (x, y)
-    pub fn position(&self) -> (i32, i32) {
-        (self.0.region.position.x, self.0.region.position.y)
+    pub fn position(&self) -> Point {
+        Point {
+            x: self.0.region.position.x,
+            y: self.0.region.position.y,
+        }
     }
 
-    /// Returns the size of the region as (width, height)
-    pub fn size(&self) -> (u32, u32) {
-        (self.0.region.size.width, self.0.region.size.height)
+    pub fn size(&self) -> Rectangle {
+        Rectangle {
+            width: self.0.region.size.width,
+            height: self.0.region.size.height,
+        }
     }
 }
 
@@ -84,11 +86,18 @@ impl Metadata for VideoCrop {
 pub struct DamageRegion<'a>(&'a spa_sys::spa_meta_region);
 
 impl<'a> DamageRegion<'a> {
-    pub fn position(&self) -> (i32, i32) {
-        (self.0.region.position.x, self.0.region.position.y)
+    pub fn position(&self) -> Point {
+        Point {
+            x: self.0.region.position.x,
+            y: self.0.region.position.y,
+        }
     }
-    pub fn size(&self) -> (u32, u32) {
-        (self.0.region.size.width, self.0.region.size.height)
+
+    pub fn size(&self) -> Rectangle {
+        Rectangle {
+            width: self.0.region.size.width,
+            height: self.0.region.size.height,
+        }
     }
 }
 
@@ -100,7 +109,6 @@ impl<'a> VideoDamage<'a> {
         self.0
     }
 
-    /// Returns the number of damage regions
     pub fn len(&self) -> usize {
         self.0.len()
     }
@@ -109,12 +117,10 @@ impl<'a> VideoDamage<'a> {
         self.0.is_empty()
     }
 
-    /// Returns an iterator over the damage regions
     pub fn iter(&self) -> impl Iterator<Item = DamageRegion<'a>> + '_ {
         self.0.iter().map(DamageRegion)
     }
 
-    /// Returns the coordinates and size of the region at the given index
     pub fn region(&self, index: usize) -> Option<DamageRegion<'a>> {
         self.0.get(index).map(DamageRegion)
     }
@@ -176,15 +182,19 @@ impl MetaCursor {
         self.0.flags
     }
 
-    /// Returns the position, on screen, of the cursor as (x, y)
-    pub fn position(&self) -> (i32, i32) {
-        (self.0.position.x, self.0.position.y)
+    pub fn position(&self) -> Point {
+        Point {
+            x: self.0.position.x,
+            y: self.0.position.y,
+        }
     }
 
-    /// offsets for hotspot in bitmap as (x, y).
     /// This field has no meaning  when there is no valid bitmap.
-    pub fn hotspot(&self) -> (i32, i32) {
-        (self.0.hotspot.x, self.0.hotspot.y)
+    pub fn hotspot(&self) -> Point {
+        Point {
+            x: self.0.hotspot.x,
+            y: self.0.hotspot.y,
+        }
     }
 
     pub fn bitmap_offset(&self) -> u32 {
@@ -214,10 +224,10 @@ impl Metadata for MetaControl {
 }
 
 #[repr(transparent)]
-pub struct MetaBusy(spa_meta_busy);
+pub struct MetaBusy(spa_sys::spa_meta_busy);
 
 impl MetaBusy {
-    pub fn as_raw(&self) -> &spa_meta_busy {
+    pub fn as_raw(&self) -> &spa_sys::spa_meta_busy {
         &self.0
     }
 
