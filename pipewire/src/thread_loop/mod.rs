@@ -106,13 +106,15 @@ impl ThreadLoop {
     /// to get a suitable timespec
     pub fn timed_wait_full(&self, abstime: nix::sys::time::TimeSpec) {
         unsafe {
-            let mut abstime = pw_sys::timespec {
-                tv_sec: abstime.tv_sec(),
-                tv_nsec: abstime.tv_nsec(),
-            };
+            // Some 32-bit systems e.g. musl add padding fields for 64-bit time compatibility
+            let mut timespec = std::mem::MaybeUninit::<pw_sys::timespec>::zeroed().assume_init();
+
+            timespec.tv_sec = abstime.tv_sec();
+            timespec.tv_nsec = abstime.tv_nsec();
+
             pw_sys::pw_thread_loop_timed_wait_full(
                 self.as_raw_ptr(),
-                &mut abstime as *mut pw_sys::timespec,
+                &mut timespec as *mut pw_sys::timespec,
             );
         }
     }
