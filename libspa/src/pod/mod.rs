@@ -1437,7 +1437,7 @@ pub struct Object {
 #[macro_export]
 macro_rules! __object__ {
     ($type_:expr, $id:expr, $($properties:expr),* $(,)?) => {
-        pipewire::spa::pod::Object {
+        $crate::pod::Object {
             type_: $type_.as_raw(),
             id: $id.as_raw(),
             properties: [ $( $properties, )* ].to_vec(),
@@ -1513,30 +1513,30 @@ bitflags! {
 #[macro_export]
 macro_rules! __property__ {
     ($key:expr, $value:expr) => {
-        pipewire::spa::pod::Property {
+        $crate::pod::Property {
             key: $key.as_raw(),
-            flags: pipewire::spa::pod::PropertyFlags::empty(),
+            flags: $crate::pod::PropertyFlags::empty(),
             value: $value,
         }
     };
 
     ($key:expr, Id, $value:expr) => {
-        pipewire::spa::pod::property!($key, pipewire::spa::pod::Value::Id(pipewire::spa::utils::Id($value.as_raw())))
+        $crate::pod::property!($key, $crate::pod::Value::Id($crate::utils::Id($value.as_raw())))
     };
 
     ($key:expr, $type_:ident, $value:expr) => {
-        pipewire::spa::pod::property!($key, pipewire::spa::pod::Value::$type_($value))
+        $crate::pod::property!($key, $crate::pod::Value::$type_($value))
     };
 
     ($key:expr, Choice, Enum, Id, $default:expr, $($alternative:expr),+ $(,)?) => {
-        pipewire::spa::pod::property!(
+        $crate::pod::property!(
             $key,
-            pipewire::spa::pod::Value::Choice(pipewire::spa::pod::ChoiceValue::Id(
-                pipewire::spa::utils::Choice::<pipewire::spa::utils::Id>(
-                    pipewire::spa::utils::ChoiceFlags::empty(),
-                    pipewire::spa::utils::ChoiceEnum::<pipewire::spa::utils::Id>::Enum {
-                        default: pipewire::spa::utils::Id($default.as_raw()),
-                        alternatives: [ $( pipewire::spa::utils::Id($alternative.as_raw()), )+ ].to_vec()
+            $crate::pod::Value::Choice($crate::pod::ChoiceValue::Id(
+                $crate::utils::Choice::<$crate::utils::Id>(
+                    $crate::utils::ChoiceFlags::empty(),
+                    $crate::utils::ChoiceEnum::<$crate::utils::Id>::Enum {
+                        default: $crate::utils::Id($default.as_raw()),
+                        alternatives: [ $( $crate::utils::Id($alternative.as_raw()), )+ ].to_vec()
                     }
                 )
             ))
@@ -1544,12 +1544,12 @@ macro_rules! __property__ {
     };
 
     ($key:expr, Choice, Enum, $type_:ident, $default:expr, $($alternative:expr),+ $(,)?) => {
-        pipewire::spa::pod::property!(
+        $crate::pod::property!(
             $key,
-            pipewire::spa::pod::Value::Choice(pipewire::spa::pod::ChoiceValue::$type_(
-                pipewire::spa::utils::Choice::<pipewire::spa::utils::$type_>(
-                    pipewire::spa::utils::ChoiceFlags::empty(),
-                    pipewire::spa::utils::ChoiceEnum::<pipewire::spa::utils::$type_>::Enum {
+            $crate::pod::Value::Choice($crate::pod::ChoiceValue::$type_(
+                $crate::utils::Choice::<$crate::utils::$type_>(
+                    $crate::utils::ChoiceFlags::empty(),
+                    $crate::utils::ChoiceEnum::<$crate::utils::$type_>::Enum {
                         default: $default,
                         alternatives: [ $( $alternative, )+ ].to_vec()
                     }
@@ -1559,12 +1559,12 @@ macro_rules! __property__ {
     };
 
     ($key:expr, Choice, Flags, $type_:ident, $default:expr, $($alternative:expr),+ $(,)?) => {
-        pipewire::spa::pod::property!(
+        $crate::pod::property!(
             $key,
-            pipewire::spa::pod::Value::Choice(pipewire::spa::pod::ChoiceValue::$type_(
-                pipewire::spa::utils::Choice::<pipewire::spa::utils::$type_>(
-                    pipewire::spa::utils::ChoiceFlags::empty(),
-                    pipewire::spa::utils::ChoiceEnum::<pipewire::spa::utils::$type_>::Flags {
+            $crate::pod::Value::Choice($crate::pod::ChoiceValue::$type_(
+                $crate::utils::Choice::<$crate::utils::$type_>(
+                    $crate::utils::ChoiceFlags::empty(),
+                    $crate::utils::ChoiceEnum::<$crate::utils::$type_>::Flags {
                         default: $default,
                         flags: [ $( $alternative, )+ ].to_vec()
                     }
@@ -1574,12 +1574,12 @@ macro_rules! __property__ {
     };
 
     ($key:expr, Choice, Step, $type_:ident, $default:expr, $min:expr, $max:expr, $step:expr) => {
-        pipewire::spa::pod::property!(
+        $crate::pod::property!(
             $key,
-            pipewire::spa::pod::Value::Choice(pipewire::spa::pod::ChoiceValue::$type_(
-                pipewire::spa::utils::Choice::<pipewire::spa::utils::$type_>(
-                    pipewire::spa::utils::ChoiceFlags::empty(),
-                    pipewire::spa::utils::ChoiceEnum::<pipewire::spa::utils::$type_>::Step {
+            $crate::pod::Value::Choice($crate::pod::ChoiceValue::$type_(
+                $crate::utils::Choice::<$crate::utils::$type_>(
+                    $crate::utils::ChoiceFlags::empty(),
+                    $crate::utils::ChoiceEnum::<$crate::utils::$type_>::Step {
                         default: $default,
                         min: $min,
                         max: $max,
@@ -1591,12 +1591,12 @@ macro_rules! __property__ {
     };
 
     ($key:expr, Choice, Range, $type_:ident, $default:expr, $min:expr, $max:expr) => {
-        pipewire::spa::pod::property!(
+        $crate::pod::property!(
             $key,
-            pipewire::spa::pod::Value::Choice(pipewire::spa::pod::ChoiceValue::$type_(
-                pipewire::spa::utils::Choice::<pipewire::spa::utils::$type_>(
-                    pipewire::spa::utils::ChoiceFlags::empty(),
-                    pipewire::spa::utils::ChoiceEnum::<pipewire::spa::utils::$type_>::Range {
+            $crate::pod::Value::Choice($crate::pod::ChoiceValue::$type_(
+                $crate::utils::Choice::<$crate::utils::$type_>(
+                    $crate::utils::ChoiceFlags::empty(),
+                    $crate::utils::ChoiceEnum::<$crate::utils::$type_>::Range {
                         default: $default,
                         min: $min,
                         max: $max,

@@ -20,7 +20,7 @@ macro_rules! key_constant {
     ($name:ident, $pw_symbol:ident, #[doc = $doc:expr]) => {
         #[doc = $doc]
         pub static $name: Lazy<&'static str> = Lazy::new(|| unsafe {
-            CStr::from_bytes_with_nul_unchecked(pw_sys::$pw_symbol)
+            CStr::from_bytes_with_nul_unchecked($crate::sys::$pw_symbol)
                 .to_str()
                 .unwrap()
         });

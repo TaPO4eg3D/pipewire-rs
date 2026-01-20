@@ -52,7 +52,7 @@ pub fn remove(mut hook: spa_sys::spa_hook) {
 #[macro_export]
 macro_rules! spa_interface_call_method {
     ($interface_ptr:expr, $methods_struct:ty, $method:ident, $( $arg:expr ),*) => {{
-        let iface: *mut spa_sys::spa_interface = $interface_ptr.cast();
+        let iface: *mut $crate::sys::spa_interface = $interface_ptr.cast();
         let funcs: *const $methods_struct = (*iface).cb.funcs.cast();
         let f = (*funcs).$method.unwrap();
 
