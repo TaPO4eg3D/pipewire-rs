@@ -485,26 +485,26 @@ impl<O: Write + Seek> PodSerializer<O> {
 
     /// Serialize a pointer pod.
     pub fn serialize_pointer<T>(
-        mut self,
+        self,
         type_: u32,
         ptr: *const T,
     ) -> Result<SerializeSuccess<O>, GenError> {
         let ptr_size = std::mem::size_of::<usize>();
         let len = 8 + ptr_size;
 
-        let mut written = self.gen(Self::header(len, spa_sys::SPA_TYPE_Pointer))?;
-        written += self.gen(pair(ne_u32(type_), ne_u32(0)))?;
-
-        written += match ptr_size {
-            4 => self.gen(ne_u32(ptr as u32))?,
-            8 => self.gen(ne_u64(ptr as u64))?,
+        match ptr_size {
+            4 => self.write_pod(
+                len,
+                spa_sys::SPA_TYPE_Pointer,
+                tuple((ne_u32(type_), ne_u32(0), ne_u32(ptr as u32))),
+            ),
+            8 => self.write_pod(
+                len,
+                spa_sys::SPA_TYPE_Pointer,
+                tuple((ne_u32(type_), ne_u32(0), ne_u64(ptr as u64))),
+            ),
             _ => panic!("unsupported pointer size {ptr_size}"),
-        };
-
-        Ok(SerializeSuccess {
-            serializer: self,
-            len: written,
-        })
+        }
     }
 }
 
