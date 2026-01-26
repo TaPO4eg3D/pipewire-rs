@@ -57,25 +57,32 @@ impl Metadata for MetaHeader {
 }
 
 #[repr(transparent)]
-pub struct VideoCrop(spa_sys::spa_meta_region);
+pub struct MetaRegion(spa_sys::spa_meta_region);
 
-impl VideoCrop {
+impl MetaRegion {
     pub fn as_raw(&self) -> &spa_sys::spa_meta_region {
         &self.0
     }
 
+    pub fn region(&self) -> &spa_sys::spa_region {
+        &self.0.region
+    }
+
     pub fn position(&self) -> Point {
-        Point {
-            x: self.0.region.position.x,
-            y: self.0.region.position.y,
-        }
+        self.0.region.position
     }
 
     pub fn size(&self) -> Rectangle {
-        Rectangle {
-            width: self.0.region.size.width,
-            height: self.0.region.size.height,
-        }
+        self.0.region.size
+    }
+}
+
+#[repr(transparent)]
+pub struct VideoCrop(MetaRegion);
+
+impl VideoCrop {
+    pub fn meta_region(&self) -> &MetaRegion {
+        &self.0
     }
 }
 
@@ -87,10 +94,7 @@ pub struct DamageRegion<'a>(&'a spa_sys::spa_meta_region);
 
 impl<'a> DamageRegion<'a> {
     pub fn position(&self) -> Point {
-        Point {
-            x: self.0.region.position.x,
-            y: self.0.region.position.y,
-        }
+        self.0.region.position
     }
 
     pub fn size(&self) -> Rectangle {
@@ -102,31 +106,9 @@ impl<'a> DamageRegion<'a> {
 }
 
 #[repr(transparent)]
-pub struct VideoDamage<'a>(&'a [spa_sys::spa_meta_region]);
+pub struct VideoDamage(spa_sys::spa_meta);
 
-impl<'a> VideoDamage<'a> {
-    pub fn as_raw(&self) -> &[spa_sys::spa_meta_region] {
-        self.0
-    }
-
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
-    }
-
-    pub fn iter(&self) -> impl Iterator<Item = DamageRegion<'a>> + '_ {
-        self.0.iter().map(DamageRegion)
-    }
-
-    pub fn region(&self, index: usize) -> Option<DamageRegion<'a>> {
-        self.0.get(index).map(DamageRegion)
-    }
-}
-
-impl Metadata for VideoDamage<'_> {
+impl Metadata for VideoDamage {
     const META_TYPE: u32 = spa_sys::SPA_META_VideoDamage;
 }
 
@@ -143,10 +125,7 @@ impl MetaBitmap {
     }
 
     pub fn size(&self) -> Rectangle {
-        Rectangle {
-            width: self.0.size.width,
-            height: self.0.size.height,
-        }
+        self.0.size
     }
 
     pub fn stride(&self) -> i32 {
@@ -183,22 +162,20 @@ impl MetaCursor {
     }
 
     pub fn position(&self) -> Point {
-        Point {
-            x: self.0.position.x,
-            y: self.0.position.y,
-        }
+        self.0.position
     }
 
     /// This field has no meaning  when there is no valid bitmap.
     pub fn hotspot(&self) -> Point {
-        Point {
-            x: self.0.hotspot.x,
-            y: self.0.hotspot.y,
-        }
+        self.0.hotspot
     }
 
     pub fn bitmap_offset(&self) -> u32 {
         self.0.bitmap_offset
+    }
+
+    pub fn is_valid(&self) -> bool {
+        self.0.id != 0
     }
 }
 
@@ -244,30 +221,52 @@ impl Metadata for MetaBusy {
     const META_TYPE: u32 = spa_sys::SPA_META_Busy;
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-#[repr(u32)]
-pub enum VideoTransform {
-    Identity = 0,
-    Rot90 = 1,
-    Rot180 = 2,
-    Rot270 = 3,
-    FlipX = 4,
-    FlipY = 5,
-    FlipXY = 6,
+mod sys {
+    pub type VideoTransform = u32;
+
+    pub const SPA_VIDEO_TRANSFORM_IDENTITY: VideoTransform = 0;
+    pub const SPA_VIDEO_TRANSFORM_ROT90: VideoTransform = 1;
+    pub const SPA_VIDEO_TRANSFORM_ROT180: VideoTransform = 2;
+    pub const SPA_VIDEO_TRANSFORM_ROT270: VideoTransform = 3;
+    pub const SPA_VIDEO_TRANSFORM_FLIP_X: VideoTransform = 4;
+    pub const SPA_VIDEO_TRANSFORM_FLIP_Y: VideoTransform = 5;
+    pub const SPA_VIDEO_TRANSFORM_FLIP_XY: VideoTransform = 6;
 }
 
+#[derive(Copy, Clone, PartialEq, Eq)]
+pub struct VideoTransform(sys::VideoTransform);
+
 impl VideoTransform {
-    pub fn from_raw(value: u32) -> Option<Self> {
-        match value {
-            0 => Some(Self::Identity),
-            1 => Some(Self::Rot90),
-            2 => Some(Self::Rot180),
-            3 => Some(Self::Rot270),
-            4 => Some(Self::FlipX),
-            5 => Some(Self::FlipY),
-            6 => Some(Self::FlipXY),
-            _ => None,
-        }
+    pub const IDENTITY: Self = Self(sys::SPA_VIDEO_TRANSFORM_IDENTITY);
+    pub const ROT90: Self = Self(sys::SPA_VIDEO_TRANSFORM_ROT90);
+    pub const ROT180: Self = Self(sys::SPA_VIDEO_TRANSFORM_ROT180);
+    pub const ROT270: Self = Self(sys::SPA_VIDEO_TRANSFORM_ROT270);
+    pub const FLIP_X: Self = Self(sys::SPA_VIDEO_TRANSFORM_FLIP_X);
+    pub const FLIP_Y: Self = Self(sys::SPA_VIDEO_TRANSFORM_FLIP_Y);
+    pub const FLIP_XY: Self = Self(sys::SPA_VIDEO_TRANSFORM_FLIP_XY);
+
+    pub fn from_raw(raw: sys::VideoTransform) -> Self {
+        Self(raw)
+    }
+
+    pub fn as_raw(&self) -> sys::VideoTransform {
+        self.0
+    }
+}
+
+impl std::fmt::Debug for VideoTransform {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let name = match *self {
+            Self::IDENTITY => "IDENTITY",
+            Self::ROT90 => "ROT90",
+            Self::ROT180 => "ROT180",
+            Self::ROT270 => "ROT270",
+            Self::FLIP_X => "FLIP_X",
+            Self::FLIP_Y => "FLIP_Y",
+            Self::FLIP_XY => "FLIP_XY",
+            _ => "UNKNOWN",
+        };
+        write!(f, "VideoTransform::{}", name)
     }
 }
 
@@ -279,7 +278,7 @@ impl MetaVideoTransform {
         &self.0
     }
 
-    pub fn transform(&self) -> Option<VideoTransform> {
+    pub fn transform(&self) -> VideoTransform {
         VideoTransform::from_raw(self.0.transform)
     }
 }

@@ -2,7 +2,11 @@
 // SPDX-License-Identifier: MIT
 
 pub mod meta;
+<<<<<<< HEAD
 use std::{convert::TryFrom, fmt::Debug, os::fd::RawFd};
+=======
+use std::{convert::TryFrom, fmt::Debug};
+>>>>>>> e169ae8 (merge main)
 
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub struct DataType(spa_sys::spa_data_type);
