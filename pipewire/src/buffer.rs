@@ -45,13 +45,24 @@ impl Buffer<'_> {
         let buffer: *mut spa_sys::spa_buffer = unsafe { self.buf.as_ref().buffer };
         if !buffer.is_null() && unsafe { (*buffer).n_metas != 0 } {
             unsafe {
-                let meta_data = spa_sys::spa_buffer_find_meta_data(
-                    buffer,
-                    T::META_TYPE,
-                    std::mem::size_of::<T>(),
-                ) as *const T;
-                if !meta_data.is_null() {
-                    return Some(&*meta_data);
+                match T::META_TYPE {
+                    spa_sys::SPA_META_VideoDamage => {
+                        let meta_data =
+                            spa_sys::spa_buffer_find_meta(buffer, T::META_TYPE) as *const T;
+                        if !meta_data.is_null() {
+                            return Some(&*meta_data);
+                        }
+                    }
+                    _ => {
+                        let meta_data = spa_sys::spa_buffer_find_meta_data(
+                            buffer,
+                            T::META_TYPE,
+                            std::mem::size_of::<T>(),
+                        ) as *const T;
+                        if !meta_data.is_null() {
+                            return Some(&*meta_data);
+                        }
+                    }
                 }
             }
         }

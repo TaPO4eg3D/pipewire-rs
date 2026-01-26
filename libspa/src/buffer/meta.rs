@@ -90,17 +90,17 @@ impl Metadata for VideoCrop {
     const META_TYPE: u32 = spa_sys::SPA_META_VideoCrop;
 }
 
-pub struct DamageRegion<'a>(&'a spa_sys::spa_meta_region);
+pub struct DamageRegion<'a>(&'a MetaRegion);
 
 impl<'a> DamageRegion<'a> {
     pub fn position(&self) -> Point {
-        self.0.region.position
+        self.0.region().position
     }
 
     pub fn size(&self) -> Rectangle {
         Rectangle {
-            width: self.0.region.size.width,
-            height: self.0.region.size.height,
+            width: self.0.region().size.width,
+            height: self.0.region().size.height,
         }
     }
 }
