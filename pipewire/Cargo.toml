@@ -20,7 +20,7 @@ spa.workspace = true
 anyhow.workspace = true
 thiserror.workspace = true
 libc.workspace = true
-nix = { workspace = true, features = ["signal", "fs"] }
+rustix.workspace = true
 bitflags.workspace = true
 once_cell.workspace = true
 

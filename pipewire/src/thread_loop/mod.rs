@@ -92,25 +92,28 @@ impl ThreadLoop {
     }
 
     /// Get a timespec suitable for [`timed_wait_full()`](`Self::timed_wait_full`)
-    pub fn get_time(&self, timeout: i64) -> nix::sys::time::TimeSpec {
+    pub fn get_time(&self, timeout: i64) -> rustix::time::Timespec {
         unsafe {
             let mut abstime: MaybeUninit<pw_sys::timespec> = std::mem::MaybeUninit::uninit();
             pw_sys::pw_thread_loop_get_time(self.as_raw_ptr(), abstime.as_mut_ptr(), timeout);
             let abstime = abstime.assume_init();
-            nix::sys::time::TimeSpec::new(abstime.tv_sec, abstime.tv_nsec)
+            rustix::time::Timespec {
+                tv_sec: abstime.tv_sec,
+                tv_nsec: abstime.tv_nsec,
+            }
         }
     }
 
     /// Release the lock and wait up to abs seconds until some
     /// thread calls [`signal()`](`Self::signal`). Use [`get_time()`](`Self::get_time`)
     /// to get a suitable timespec
-    pub fn timed_wait_full(&self, abstime: nix::sys::time::TimeSpec) {
+    pub fn timed_wait_full(&self, abstime: rustix::time::Timespec) {
         unsafe {
             // Some 32-bit systems e.g. musl add padding fields for 64-bit time compatibility
             let mut timespec = std::mem::MaybeUninit::<pw_sys::timespec>::zeroed().assume_init();
 
-            timespec.tv_sec = abstime.tv_sec();
-            timespec.tv_nsec = abstime.tv_nsec();
+            timespec.tv_sec = abstime.tv_sec;
+            timespec.tv_nsec = abstime.tv_nsec;
 
             pw_sys::pw_thread_loop_timed_wait_full(
                 self.as_raw_ptr(),

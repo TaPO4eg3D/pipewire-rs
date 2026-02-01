@@ -28,7 +28,6 @@ use cookie_factory::{
     sequence::pair,
     GenError,
 };
-use nix::errno::Errno;
 use nom::{
     combinator::map,
     number::{
@@ -37,6 +36,7 @@ use nom::{
     },
     IResult, Parser,
 };
+use rustix::io::Errno;
 
 use deserialize::{BoolVisitor, NoneVisitor, PodDeserialize, PodDeserializer};
 use serialize::{PodSerialize, PodSerializer};
@@ -171,7 +171,7 @@ impl Pod {
             if res >= 0 {
                 Ok(b.assume_init())
             } else {
-                Err(Errno::from_raw(-res))
+                Err(Errno::from_raw_os_error(-res))
             }
         }
     }
@@ -189,7 +189,7 @@ impl Pod {
             if res >= 0 {
                 Ok(Id(id.assume_init()))
             } else {
-                Err(Errno::from_raw(-res))
+                Err(Errno::from_raw_os_error(-res))
             }
         }
     }
@@ -207,7 +207,7 @@ impl Pod {
             if res >= 0 {
                 Ok(int.assume_init())
             } else {
-                Err(Errno::from_raw(-res))
+                Err(Errno::from_raw_os_error(-res))
             }
         }
     }
@@ -225,7 +225,7 @@ impl Pod {
             if res >= 0 {
                 Ok(long.assume_init())
             } else {
-                Err(Errno::from_raw(-res))
+                Err(Errno::from_raw_os_error(-res))
             }
         }
     }
@@ -243,7 +243,7 @@ impl Pod {
             if res >= 0 {
                 Ok(float.assume_init())
             } else {
-                Err(Errno::from_raw(-res))
+                Err(Errno::from_raw_os_error(-res))
             }
         }
     }
@@ -261,7 +261,7 @@ impl Pod {
             if res >= 0 {
                 Ok(double.assume_init())
             } else {
-                Err(Errno::from_raw(-res))
+                Err(Errno::from_raw_os_error(-res))
             }
         }
     }
@@ -284,7 +284,7 @@ impl Pod {
                     Ok(Some(CStr::from_ptr(value)))
                 }
             } else {
-                Err(Errno::from_raw(-res))
+                Err(Errno::from_raw_os_error(-res))
             }
         }
     }
@@ -307,7 +307,7 @@ impl Pod {
                 let bytes = std::slice::from_raw_parts(bytes.cast(), len.try_into().unwrap());
                 Ok(bytes)
             } else {
-                Err(Errno::from_raw(-res))
+                Err(Errno::from_raw_os_error(-res))
             }
         }
     }
@@ -332,7 +332,7 @@ impl Pod {
                 let pointer = pointer.assume_init();
                 Ok((pointer, _type))
             } else {
-                Err(Errno::from_raw(-res))
+                Err(Errno::from_raw_os_error(-res))
             }
         }
     }
@@ -352,7 +352,7 @@ impl Pod {
                 let fd: RawFd = fd.try_into().unwrap();
                 Ok(fd)
             } else {
-                Err(Errno::from_raw(-res))
+                Err(Errno::from_raw_os_error(-res))
             }
         }
     }
@@ -370,7 +370,7 @@ impl Pod {
             if res >= 0 {
                 Ok(rectangle.assume_init())
             } else {
-                Err(Errno::from_raw(-res))
+                Err(Errno::from_raw_os_error(-res))
             }
         }
     }
@@ -388,7 +388,7 @@ impl Pod {
             if res >= 0 {
                 Ok(fraction.assume_init())
             } else {
-                Err(Errno::from_raw(-res))
+                Err(Errno::from_raw_os_error(-res))
             }
         }
     }
@@ -419,7 +419,7 @@ impl Pod {
             //         safely create a PodStruct from it
             Ok(unsafe { PodStruct::from_raw(self.as_raw_ptr() as *const spa_sys::spa_pod_struct) })
         } else {
-            Err(Errno::EINVAL)
+            Err(Errno::INVAL)
         }
     }
 
@@ -436,7 +436,7 @@ impl Pod {
             //         safely create a PodObject from it
             Ok(unsafe { PodObject::from_raw(self.as_raw_ptr() as *const spa_sys::spa_pod_object) })
         } else {
-            Err(Errno::EINVAL)
+            Err(Errno::INVAL)
         }
     }
 

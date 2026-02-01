@@ -101,7 +101,7 @@ impl<T: 'static> Receiver<T> {
             let mut channel = channel.lock().expect("Channel mutex lock poisoned");
 
             // Read from the pipe to make it block until written to again.
-            let _ = nix::unistd::read(&channel.readfd, &mut [0]);
+            let _ = rustix::io::read(&channel.readfd, &mut [0]);
 
             channel.queue.drain(..).for_each(&callback);
         });
@@ -166,7 +166,7 @@ impl<T> Sender<T> {
         // If no messages are waiting already, signal the receiver to read some.
         // Because the channel mutex is locked, it is alright to do this before pushing the message.
         if channel.queue.is_empty() {
-            match nix::unistd::write(&channel.writefd, &[1u8]) {
+            match rustix::io::write(&channel.writefd, &[1u8]) {
                 Ok(_) => (),
                 Err(_) => return Err(t),
             }
@@ -199,7 +199,7 @@ pub fn channel<T>() -> (Sender<T>, Receiver<T>)
 where
     T: 'static,
 {
-    let fds = nix::unistd::pipe2(nix::fcntl::OFlag::O_CLOEXEC).unwrap();
+    let fds = rustix::pipe::pipe_with(rustix::pipe::PipeFlags::CLOEXEC).unwrap();
 
     let channel: Arc<Mutex<Channel<T>>> = Arc::new(Mutex::new(Channel {
         readfd: fds.0,

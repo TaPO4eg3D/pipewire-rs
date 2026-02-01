@@ -17,7 +17,7 @@ keywords = ["pipewire", "multimedia", "audio", "video"]
 spa_sys.workspace = true
 bitflags.workspace = true
 libc.workspace = true
-nix.workspace = true
+rustix.workspace = true
 cookie-factory = { workspace = true, features = ["std"] }
 nom.workspace = true
 convert_case.workspace = true

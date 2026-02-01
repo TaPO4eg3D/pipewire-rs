@@ -4,7 +4,7 @@
 use std::{convert::TryInto, os::unix::prelude::*, ptr, time::Duration};
 
 use libc::{c_int, c_void};
-pub use nix::sys::signal::Signal;
+pub use rustix::process::Signal;
 use spa::{spa_interface_call_method, support::system::IoFlags, utils::result::SpaResult};
 
 use crate::utils::assert_main_thread;
@@ -246,7 +246,7 @@ impl Loop {
                 &mut iface as *mut spa_sys::spa_interface,
                 spa_sys::spa_loop_utils_methods,
                 add_signal,
-                signal as c_int,
+                signal.as_raw(),
                 Some(call_closure::<F>),
                 data as *mut _
             );
