@@ -1,7 +1,6 @@
 // Copyright The pipewire-rs Contributors.
 // SPDX-License-Identifier: MIT
 
-use anyhow::Result;
 use clap::Parser;
 use pipewire as pw;
 use spa::pod::Pod;
@@ -55,7 +54,7 @@ impl Proxies {
     }
 }
 
-fn monitor(remote: Option<String>) -> Result<()> {
+fn monitor(remote: Option<String>) -> Result<(), pw::Error> {
     let main_loop = pw::main_loop::MainLoopRc::new(None)?;
 
     let main_loop_weak = main_loop.downgrade();
@@ -215,7 +214,7 @@ struct Opt {
     remote: Option<String>,
 }
 
-fn main() -> Result<()> {
+fn main() -> Result<(), pw::Error> {
     pw::init();
 
     let opt = Opt::parse();

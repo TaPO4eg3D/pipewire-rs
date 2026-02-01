@@ -17,7 +17,6 @@ keywords = ["pipewire", "multimedia", "audio", "video"]
 pw_sys.workspace = true
 spa_sys.workspace = true
 spa.workspace = true
-anyhow.workspace = true
 thiserror.workspace = true
 libc.workspace = true
 rustix.workspace = true
