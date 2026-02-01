@@ -1,8 +1,9 @@
-use std::{cell::Cell, rc::Rc};
-
-use once_cell::unsync::OnceCell;
 use pipewire as pw;
 use pw::types::ObjectType;
+use std::{
+    cell::{Cell, OnceCell},
+    rc::Rc,
+};
 
 fn main() {
     // Initialize library and get the basic structures we need.

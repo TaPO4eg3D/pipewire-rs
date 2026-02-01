@@ -169,8 +169,8 @@ use std::ptr;
 /// Initialize the PipeWire system and set up debugging
 /// through the environment variable `PIPEWIRE_DEBUG`.
 pub fn init() {
-    use once_cell::sync::OnceCell;
-    static INITIALIZED: OnceCell<()> = OnceCell::new();
+    use std::sync::OnceLock;
+    static INITIALIZED: OnceLock<()> = OnceLock::new();
     INITIALIZED.get_or_init(|| unsafe { pw_sys::pw_init(ptr::null_mut(), ptr::null_mut()) });
 }
 
