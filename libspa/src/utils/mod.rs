@@ -8,8 +8,27 @@ pub mod list;
 pub mod result;
 
 use bitflags::bitflags;
-use convert_case::{Case, Casing};
-use std::{ffi::CStr, fmt::Debug, os::raw::c_uint};
+use std::{
+    ffi::CStr,
+    fmt::{self, Debug, Formatter, Write},
+    os::raw::c_uint,
+};
+
+pub(crate) fn fmt_pascal_case(f: &mut Formatter<'_>, s: &str) -> fmt::Result {
+    for part in s.split(|c: char| c == ':' || c.is_whitespace()) {
+        if part.is_empty() {
+            continue;
+        }
+
+        let mut chars = part.chars();
+        if let Some(first) = chars.next() {
+            f.write_char(first.to_ascii_uppercase())?;
+            f.write_str(chars.as_str())?;
+        }
+    }
+
+    Ok(())
+}
 
 pub use spa_sys::spa_fraction as Fraction;
 pub use spa_sys::spa_rectangle as Rectangle;
@@ -164,20 +183,17 @@ impl Debug for SpaTypes {
                     }
                     CStr::from_ptr(c_buf)
                 };
-                let name = format!(
-                    "SpaTypes::{}",
-                    c_str
-                        .to_string_lossy()
-                        .replace("Spa:Pointer", "Pointer")
-                        .replace("Spa:Pod:Object:Event", "Event")
-                        .replace("Spa:Pod:Object:Command", "Command")
-                        .replace("Spa:Pod:Object", "Object")
-                        .replace("Spa:Pod:", "")
-                        .replace("Spa:", "")
-                        .replace(':', " ")
-                        .to_case(Case::Pascal)
-                );
-                f.write_str(&name)
+                let replaced = c_str
+                    .to_string_lossy()
+                    .replace("Spa:Pointer", "Pointer")
+                    .replace("Spa:Pod:Object:Event", "Event")
+                    .replace("Spa:Pod:Object:Command", "Command")
+                    .replace("Spa:Pod:Object", "Object")
+                    .replace("Spa:Pod:", "")
+                    .replace("Spa:", "")
+                    .replace(':', " ");
+                f.write_str("SpaTypes::")?;
+                fmt_pascal_case(f, &replaced)
             }
         }
     }
@@ -186,6 +202,36 @@ impl Debug for SpaTypes {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_fmt_pascal_case() {
+        fn format_pascal(s: &str) -> String {
+            struct PascalCase<'a>(&'a str);
+            impl<'a> std::fmt::Display for PascalCase<'a> {
+                fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+                    fmt_pascal_case(f, self.0)
+                }
+            }
+            format!("{}", PascalCase(s))
+        }
+
+        assert_eq!(format_pascal("hello"), "Hello");
+        assert_eq!(format_pascal("hello:world"), "HelloWorld");
+        assert_eq!(format_pascal("hello world"), "HelloWorld");
+        assert_eq!(format_pascal("hello:world test"), "HelloWorldTest");
+        assert_eq!(format_pascal("Hello:World"), "HelloWorld");
+        assert_eq!(format_pascal("hello::world  test"), "HelloWorldTest");
+        assert_eq!(format_pascal(":hello world: "), "HelloWorld");
+        assert_eq!(format_pascal("a:b c"), "ABC");
+        assert_eq!(format_pascal("foo:bar:baz"), "FooBarBaz");
+        assert_eq!(format_pascal("fOo:bAr"), "FOoBAr");
+        assert_eq!(
+            format_pascal("Spa:Pod:Object:Param:Format"),
+            "SpaPodObjectParamFormat"
+        );
+        assert_eq!(format_pascal(""), "");
+        assert_eq!(format_pascal(":::   "), "");
+    }
 
     #[test]
     #[cfg_attr(miri, ignore)]
