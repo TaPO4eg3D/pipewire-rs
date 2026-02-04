@@ -98,8 +98,8 @@ impl ThreadLoop {
             pw_sys::pw_thread_loop_get_time(self.as_raw_ptr(), abstime.as_mut_ptr(), timeout);
             let abstime = abstime.assume_init();
             rustix::time::Timespec {
-                tv_sec: abstime.tv_sec,
-                tv_nsec: abstime.tv_nsec,
+                tv_sec: abstime.tv_sec as _,
+                tv_nsec: abstime.tv_nsec as _,
             }
         }
     }
@@ -107,13 +107,25 @@ impl ThreadLoop {
     /// Release the lock and wait up to abs seconds until some
     /// thread calls [`signal()`](`Self::signal`). Use [`get_time()`](`Self::get_time`)
     /// to get a suitable timespec
+    ///
+    /// # Panics
+    /// Panics if the provided timeout does not fit into a platform timespec
     pub fn timed_wait_full(&self, abstime: rustix::time::Timespec) {
         unsafe {
             // Some 32-bit systems e.g. musl add padding fields for 64-bit time compatibility
             let mut timespec = std::mem::MaybeUninit::<pw_sys::timespec>::zeroed().assume_init();
 
-            timespec.tv_sec = abstime.tv_sec;
-            timespec.tv_nsec = abstime.tv_nsec;
+            #[allow(clippy::useless_conversion)] // Architecture dependent
+            {
+                timespec.tv_sec = abstime
+                    .tv_sec
+                    .try_into()
+                    .expect("Seconds do not fit into a timespec");
+                timespec.tv_nsec = abstime
+                    .tv_nsec
+                    .try_into()
+                    .expect("Nanoseconds do not fit into a timespec");
+            }
 
             pw_sys::pw_thread_loop_timed_wait_full(
                 self.as_raw_ptr(),
