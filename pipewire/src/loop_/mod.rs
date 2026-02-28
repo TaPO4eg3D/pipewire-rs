@@ -97,12 +97,22 @@ impl Loop {
     /// This function will panic if the provided timeout as milliseconds does not fit inside a
     /// `c_int` integer.
     pub fn iterate(&self, timeout: Timeout) -> i32 {
+        struct LeaveGuard<'a>(&'a Loop);
+
+        impl Drop for LeaveGuard<'_> {
+            fn drop(&mut self) {
+                unsafe {
+                    self.0.leave();
+                }
+            }
+        }
+
         unsafe {
             self.enter();
-            let res = self.iterate_unguarded(timeout);
-            self.leave();
 
-            res
+            let _guard = LeaveGuard(self);
+
+            self.iterate_unguarded(timeout)
         }
     }
 
