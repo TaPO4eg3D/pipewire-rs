@@ -1,5 +1,5 @@
 use crate::param::video::VideoFormat;
-use crate::utils::{Point, Rectangle};
+use crate::utils::{Point, Rectangle, Region};
 
 pub trait Metadata {
     const META_TYPE: u32;
@@ -64,7 +64,7 @@ impl MetaRegion {
         &self.0
     }
 
-    pub fn region(&self) -> &spa_sys::spa_region {
+    pub fn region(&self) -> &Region {
         &self.0.region
     }
 
@@ -74,6 +74,10 @@ impl MetaRegion {
 
     pub fn size(&self) -> Rectangle {
         self.0.region.size
+    }
+
+    pub fn is_valid(&self) -> bool {
+        unsafe { spa_sys::spa_meta_region_is_valid(self.as_raw()) }
     }
 }
 
@@ -90,23 +94,51 @@ impl Metadata for VideoCrop {
     const META_TYPE: u32 = spa_sys::SPA_META_VideoCrop;
 }
 
-pub struct DamageRegion<'a>(&'a MetaRegion);
+#[repr(transparent)]
+pub struct VideoDamage(spa_sys::spa_meta);
 
-impl<'a> DamageRegion<'a> {
-    pub fn position(&self) -> Point {
-        self.0.region().position
+impl VideoDamage {
+    pub fn as_raw(&self) -> &spa_sys::spa_meta {
+        &self.0
     }
 
-    pub fn size(&self) -> Rectangle {
-        Rectangle {
-            width: self.0.region().size.width,
-            height: self.0.region().size.height,
+    pub fn iter(&self) -> VideoDamageIter<'_> {
+        VideoDamageIter::new(self)
+    }
+}
+
+pub struct VideoDamageIter<'a> {
+    video_damage: &'a VideoDamage,
+    pos: *const spa_sys::spa_meta_region,
+}
+
+impl<'a> VideoDamageIter<'a> {
+    fn new(video_damage: &'a VideoDamage) -> Self {
+        Self {
+            video_damage,
+            pos: unsafe { spa_sys::spa_meta_first(video_damage.as_raw()) }.cast(),
         }
     }
 }
 
-#[repr(transparent)]
-pub struct VideoDamage(spa_sys::spa_meta);
+impl<'a> Iterator for VideoDamageIter<'a> {
+    type Item = &'a MetaRegion;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if !unsafe { spa_sys::spa_meta_check(self.pos.cast(), self.video_damage.as_raw()) } {
+            return None;
+        }
+
+        let region = unsafe { self.pos.cast::<MetaRegion>().as_ref()? };
+        if !region.is_valid() {
+            return None;
+        }
+
+        self.pos = unsafe { self.pos.add(1) };
+
+        Some(region)
+    }
+}
 
 impl Metadata for VideoDamage {
     const META_TYPE: u32 = spa_sys::SPA_META_VideoDamage;
@@ -137,7 +169,23 @@ impl MetaBitmap {
     }
 
     pub fn is_valid(&self) -> bool {
-        self.0.format != 0
+        unsafe { spa_sys::spa_meta_bitmap_is_valid(self.as_raw()) }
+    }
+
+    pub fn bitmap_data(&self) -> Option<&[u8]> {
+        if !self.is_valid() {
+            return None;
+        }
+
+        let height = self.0.size.height as usize;
+        let stride = self.0.stride.unsigned_abs() as usize;
+        let data_size = height * stride;
+
+        unsafe {
+            let base_ptr = self as *const _ as *const u8;
+            let data_ptr = base_ptr.add(self.0.offset as usize);
+            Some(std::slice::from_raw_parts(data_ptr, data_size))
+        }
     }
 }
 
@@ -175,7 +223,20 @@ impl MetaCursor {
     }
 
     pub fn is_valid(&self) -> bool {
-        self.0.id != 0
+        unsafe { spa_sys::spa_meta_cursor_is_valid(self.as_raw()) }
+    }
+
+    pub fn bitmap(&self) -> Option<&MetaBitmap> {
+        if self.0.bitmap_offset == 0 {
+            return None;
+        }
+
+        unsafe {
+            let base_ptr = self as *const _ as *const u8;
+            let bitmap_ptr = base_ptr.add(self.0.bitmap_offset as usize);
+            let bitmap_ptr = bitmap_ptr as *const MetaBitmap;
+            bitmap_ptr.as_ref()
+        }
     }
 }
 
@@ -200,9 +261,11 @@ impl Metadata for MetaControl {
     const META_TYPE: u32 = spa_sys::SPA_META_Control;
 }
 
+#[cfg(feature = "v0_3_21")]
 #[repr(transparent)]
 pub struct MetaBusy(spa_sys::spa_meta_busy);
 
+#[cfg(feature = "v0_3_21")]
 impl MetaBusy {
     pub fn as_raw(&self) -> &spa_sys::spa_meta_busy {
         &self.0
@@ -217,10 +280,12 @@ impl MetaBusy {
     }
 }
 
+#[cfg(feature = "v0_3_21")]
 impl Metadata for MetaBusy {
     const META_TYPE: u32 = spa_sys::SPA_META_Busy;
 }
 
+#[cfg(feature = "v0_3_62")]
 mod sys {
     pub type VideoTransform = u32;
 
@@ -233,9 +298,11 @@ mod sys {
     pub const SPA_VIDEO_TRANSFORM_FLIP_XY: VideoTransform = 6;
 }
 
+#[cfg(feature = "v0_3_62")]
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub struct VideoTransform(sys::VideoTransform);
 
+#[cfg(feature = "v0_3_62")]
 impl VideoTransform {
     pub const IDENTITY: Self = Self(sys::SPA_VIDEO_TRANSFORM_IDENTITY);
     pub const ROT90: Self = Self(sys::SPA_VIDEO_TRANSFORM_ROT90);
@@ -254,6 +321,7 @@ impl VideoTransform {
     }
 }
 
+#[cfg(feature = "v0_3_62")]
 impl std::fmt::Debug for VideoTransform {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let name = match *self {
@@ -270,9 +338,11 @@ impl std::fmt::Debug for VideoTransform {
     }
 }
 
+#[cfg(feature = "v0_3_62")]
 #[repr(transparent)]
 pub struct MetaVideoTransform(spa_sys::spa_meta_videotransform);
 
+#[cfg(feature = "v0_3_62")]
 impl MetaVideoTransform {
     pub fn as_raw(&self) -> &spa_sys::spa_meta_videotransform {
         &self.0
@@ -283,10 +353,12 @@ impl MetaVideoTransform {
     }
 }
 
+#[cfg(feature = "v0_3_62")]
 impl Metadata for MetaVideoTransform {
     const META_TYPE: u32 = spa_sys::SPA_META_VideoTransform;
 }
 
+#[cfg(feature = "v1_2_0")]
 bitflags::bitflags! {
     #[derive(Debug, PartialEq, Eq, Clone, Copy)]
     pub struct SyncTimelineFlags: u32 {
@@ -296,9 +368,11 @@ bitflags::bitflags! {
     }
 }
 
+#[cfg(feature = "v1_2_0")]
 #[repr(transparent)]
 pub struct MetaSyncTimeline(spa_sys::spa_meta_sync_timeline);
 
+#[cfg(feature = "v1_2_0")]
 impl MetaSyncTimeline {
     pub fn as_raw(&self) -> &spa_sys::spa_meta_sync_timeline {
         &self.0
@@ -323,6 +397,7 @@ impl MetaSyncTimeline {
     }
 }
 
+#[cfg(feature = "v1_2_0")]
 impl Metadata for MetaSyncTimeline {
     const META_TYPE: u32 = spa_sys::SPA_META_SyncTimeline;
 }

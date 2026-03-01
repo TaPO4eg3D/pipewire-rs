@@ -25,6 +25,8 @@ pub use type_info::*;
 
 mod command;
 pub use command::*;
+mod meta;
+pub use meta::*;
 
 mod node_command;
 pub use node_command::*;

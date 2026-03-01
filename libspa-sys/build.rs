@@ -53,11 +53,17 @@ fn main() {
     bindings
         .write_to_file(out_path.join("bindings.rs"))
         .expect("Couldn't write bindings!");
-    const FILES: &[&str] = &["src/type-info.c", "src/command.c", "src/node-command.c"];
+    const FILES: &[&str] = &[
+        "src/type-info.c",
+        "src/command.c",
+        "src/node-command.c",
+        "src/meta.c",
+    ];
     let cc_files = &[
         PathBuf::from(FILES[0]),
         PathBuf::from(FILES[1]),
         PathBuf::from(FILES[2]),
+        PathBuf::from(FILES[3]),
         out_path.join("static_fns.c"),
     ];
 
