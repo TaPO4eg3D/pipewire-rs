@@ -3,10 +3,11 @@
 
 //! Types for dealing with SPA formats.
 
-use convert_case::{Case, Casing};
 use std::ffi::CStr;
 use std::fmt::Debug;
 use std::ops::Range;
+
+use crate::utils::fmt_pascal_case;
 
 /// Different media types
 #[derive(PartialEq, Eq, Clone, Copy)]
@@ -45,11 +46,8 @@ impl Debug for MediaType {
             }
             CStr::from_ptr(c_buf)
         };
-        let name = format!(
-            "MediaType::{}",
-            c_str.to_string_lossy().to_case(Case::Pascal)
-        );
-        f.write_str(&name)
+        f.write_str("MediaType::")?;
+        fmt_pascal_case(f, &c_str.to_string_lossy())
     }
 }
 
@@ -164,11 +162,8 @@ impl Debug for MediaSubtype {
             }
             CStr::from_ptr(c_buf)
         };
-        let name = format!(
-            "MediaSubtype::{}",
-            c_str.to_string_lossy().to_case(Case::Pascal)
-        );
-        f.write_str(&name)
+        f.write_str("MediaSubtype::")?;
+        fmt_pascal_case(f, &c_str.to_string_lossy())
     }
 }
 
@@ -313,15 +308,12 @@ impl Debug for FormatProperties {
             }
             CStr::from_ptr(c_buf)
         };
-        let name = format!(
-            "FormatProperties::{}",
-            c_str
-                .to_string_lossy()
-                .replace("Spa:Pod:Object:Param:Format:", "")
-                .replace(':', " ")
-                .to_case(Case::Pascal)
-        );
-        f.write_str(&name)
+        let replaced = c_str
+            .to_string_lossy()
+            .replace("Spa:Pod:Object:Param:Format:", "")
+            .replace(':', " ");
+        f.write_str("FormatProperties::")?;
+        fmt_pascal_case(f, &replaced)
     }
 }
 

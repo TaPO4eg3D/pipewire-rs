@@ -4,7 +4,7 @@
 use std::{convert::TryInto, os::unix::prelude::*, ptr, time::Duration};
 
 use libc::{c_int, c_void};
-pub use nix::sys::signal::Signal;
+pub use rustix::process::Signal;
 use spa::{spa_interface_call_method, support::system::IoFlags, utils::result::SpaResult};
 
 use crate::utils::assert_main_thread;
@@ -246,7 +246,7 @@ impl Loop {
                 &mut iface as *mut spa_sys::spa_interface,
                 spa_sys::spa_loop_utils_methods,
                 add_signal,
-                signal as c_int,
+                signal.as_raw(),
                 Some(call_closure::<F>),
                 data as *mut _
             );
@@ -558,17 +558,21 @@ impl<'l> TimerSource<'l> {
     /// The provided durations seconds must fit in an i64. Otherwise, this function will panic.
     pub fn update_timer(&self, value: Option<Duration>, interval: Option<Duration>) -> SpaResult {
         fn duration_to_timespec(duration: Duration) -> spa_sys::timespec {
-            spa_sys::timespec {
-                tv_sec: duration.as_secs().try_into().expect("Duration too long"),
-                // `Into` is only implemented on some platforms for these types,
-                // so use a fallible conversion.
-                // As there are a limited amount of nanoseconds in a second, this shouldn't fail
-                #[allow(clippy::unnecessary_fallible_conversions)]
-                tv_nsec: duration
+            // Some 32-bit systems e.g. musl add padding fields for 64-bit time compatibility
+            let mut timespec =
+                unsafe { std::mem::MaybeUninit::<spa_sys::timespec>::zeroed().assume_init() };
+
+            timespec.tv_sec = duration.as_secs().try_into().expect("Duration too long");
+
+            #[allow(clippy::unnecessary_fallible_conversions)] // Architecture dependent
+            {
+                timespec.tv_nsec = duration
                     .subsec_nanos()
                     .try_into()
-                    .expect("Nanoseconds should fit into timespec"),
+                    .expect("Nanoseconds should fit into timespec");
             }
+
+            timespec
         }
 
         let value = duration_to_timespec(value.unwrap_or_default());

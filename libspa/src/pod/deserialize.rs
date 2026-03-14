@@ -801,7 +801,8 @@ impl<'de> PodDeserializer<'de> {
                 visitor.visit_pointer(type_, ptr as *const c_void)?
             }
             4 => {
-                let ptr: u32 = self.parse(|input| u32(Endianness::Native).parse(input))?;
+                let (ptr, _padding) =
+                    self.parse(|input| pair(u32(Endianness::Native), take(4usize)).parse(input))?;
                 visitor.visit_pointer(type_, ptr as *const c_void)?
             }
             _ => panic!("unsupported pointer size {ptr_size}"),

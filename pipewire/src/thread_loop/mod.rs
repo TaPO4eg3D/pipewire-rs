@@ -92,27 +92,44 @@ impl ThreadLoop {
     }
 
     /// Get a timespec suitable for [`timed_wait_full()`](`Self::timed_wait_full`)
-    pub fn get_time(&self, timeout: i64) -> nix::sys::time::TimeSpec {
+    pub fn get_time(&self, timeout: i64) -> rustix::time::Timespec {
         unsafe {
             let mut abstime: MaybeUninit<pw_sys::timespec> = std::mem::MaybeUninit::uninit();
             pw_sys::pw_thread_loop_get_time(self.as_raw_ptr(), abstime.as_mut_ptr(), timeout);
             let abstime = abstime.assume_init();
-            nix::sys::time::TimeSpec::new(abstime.tv_sec, abstime.tv_nsec)
+            rustix::time::Timespec {
+                tv_sec: abstime.tv_sec as _,
+                tv_nsec: abstime.tv_nsec as _,
+            }
         }
     }
 
     /// Release the lock and wait up to abs seconds until some
     /// thread calls [`signal()`](`Self::signal`). Use [`get_time()`](`Self::get_time`)
     /// to get a suitable timespec
-    pub fn timed_wait_full(&self, abstime: nix::sys::time::TimeSpec) {
+    ///
+    /// # Panics
+    /// Panics if the provided timeout does not fit into a platform timespec
+    pub fn timed_wait_full(&self, abstime: rustix::time::Timespec) {
         unsafe {
-            let mut abstime = pw_sys::timespec {
-                tv_sec: abstime.tv_sec(),
-                tv_nsec: abstime.tv_nsec(),
-            };
+            // Some 32-bit systems e.g. musl add padding fields for 64-bit time compatibility
+            let mut timespec = std::mem::MaybeUninit::<pw_sys::timespec>::zeroed().assume_init();
+
+            #[allow(clippy::useless_conversion)] // Architecture dependent
+            {
+                timespec.tv_sec = abstime
+                    .tv_sec
+                    .try_into()
+                    .expect("Seconds do not fit into a timespec");
+                timespec.tv_nsec = abstime
+                    .tv_nsec
+                    .try_into()
+                    .expect("Nanoseconds do not fit into a timespec");
+            }
+
             pw_sys::pw_thread_loop_timed_wait_full(
                 self.as_raw_ptr(),
-                &mut abstime as *mut pw_sys::timespec,
+                &mut timespec as *mut pw_sys::timespec,
             );
         }
     }

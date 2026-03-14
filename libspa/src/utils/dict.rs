@@ -380,8 +380,8 @@ macro_rules! static_dict {
             )+
         ];
 
-        static mut RAW: spa_sys::spa_dict = unsafe {
-            spa_sys::spa_dict {
+        static mut RAW: $crate::sys::spa_dict = unsafe {
+            $crate::sys::spa_dict {
                 flags: Flags::empty().bits(),
                 n_items: ITEMS.len() as u32,
                 items: ITEMS as *const spa_dict_item,

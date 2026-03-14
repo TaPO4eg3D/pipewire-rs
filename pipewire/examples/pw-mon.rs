@@ -1,7 +1,6 @@
 // Copyright The pipewire-rs Contributors.
 // SPDX-License-Identifier: MIT
 
-use anyhow::Result;
 use clap::Parser;
 use pipewire as pw;
 use spa::pod::Pod;
@@ -55,23 +54,21 @@ impl Proxies {
     }
 }
 
-fn monitor(remote: Option<String>) -> Result<()> {
+fn monitor(remote: Option<String>) -> Result<(), pw::Error> {
     let main_loop = pw::main_loop::MainLoopRc::new(None)?;
 
     let main_loop_weak = main_loop.downgrade();
-    let _sig_int = main_loop.loop_().add_signal_local(Signal::SIGINT, move || {
+    let _sig_int = main_loop.loop_().add_signal_local(Signal::INT, move || {
         if let Some(main_loop) = main_loop_weak.upgrade() {
             main_loop.quit();
         }
     });
     let main_loop_weak = main_loop.downgrade();
-    let _sig_term = main_loop
-        .loop_()
-        .add_signal_local(Signal::SIGTERM, move || {
-            if let Some(main_loop) = main_loop_weak.upgrade() {
-                main_loop.quit();
-            }
-        });
+    let _sig_term = main_loop.loop_().add_signal_local(Signal::TERM, move || {
+        if let Some(main_loop) = main_loop_weak.upgrade() {
+            main_loop.quit();
+        }
+    });
 
     let context = pw::context::ContextRc::new(&main_loop, None)?;
     let props = remote.map(|remote| {
@@ -217,7 +214,7 @@ struct Opt {
     remote: Option<String>,
 }
 
-fn main() -> Result<()> {
+fn main() -> Result<(), pw::Error> {
     pw::init();
 
     let opt = Opt::parse();

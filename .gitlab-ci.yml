@@ -15,7 +15,7 @@ stages:
 # Keep this in sync with "rust-version" in Cargo.toml and change the container
 # BASE_TAG below to trigger a container rebuld.
 # Used for installing older Rust and testing with it
-.msrv: &msrv '1.79'
+.msrv: &msrv '1.80'
 
 variables:
   FDO_UPSTREAM_REPO: 'pipewire/pipewire-rs'

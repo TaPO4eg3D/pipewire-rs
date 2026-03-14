@@ -31,7 +31,7 @@ macro_rules! object_type {
             pub(crate) fn client_version(&self) -> u32 {
                 match self {
                     $(
-                        ObjectType::$x => pw_sys::$version,
+                        ObjectType::$x => $crate::sys::$version,
                     )*
                     ObjectType::Other(_) => panic!("Invalid object type"),
                 }

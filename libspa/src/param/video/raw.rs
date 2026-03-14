@@ -6,10 +6,10 @@ use crate::utils::{
     Fraction, Rectangle,
 };
 
-#[cfg(feature = "v0_3_65")]
-use convert_case::{Case, Casing};
-
 use std::{ffi::CStr, fmt::Debug};
+
+#[cfg(feature = "v0_3_65")]
+use crate::utils::fmt_pascal_case;
 
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub struct VideoFormat(pub spa_sys::spa_video_format);
@@ -211,11 +211,8 @@ impl Debug for VideoInterlaceMode {
             }
             CStr::from_ptr(c_buf)
         };
-        let name = format!(
-            "VideoInterlaceMode::{}",
-            c_str.to_string_lossy().to_case(Case::Pascal)
-        );
-        f.write_str(&name)
+        f.write_str("VideoInterlaceMode::")?;
+        fmt_pascal_case(f, &c_str.to_string_lossy())
     }
 }
 
