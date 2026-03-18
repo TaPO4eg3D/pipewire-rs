@@ -22,6 +22,11 @@
 ## Getting help
 You can ask questions related to the rust bindings at [#pipewire-rs](irc://irc.oftc.net:6667/pipewire-rs), and general pipewire questions at [#pipewire](irc://irc.oftc.net:6667/pipewire) via IRC on [OFTC](https://www.oftc.net/).
 
+## Changelog
+
+Changes for releases are published on GitLab at:
+<https://gitlab.freedesktop.org/pipewire/pipewire-rs/-/releases>
+
 ## License
 The pipewire-rs project is distributed under the terms of the MIT license.
 
