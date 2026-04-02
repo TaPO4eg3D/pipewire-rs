@@ -324,7 +324,7 @@ impl MetaBusy {
         &self.0
     }
 
-    pub fn flag(&self) -> u32 {
+    pub fn flags(&self) -> u32 {
         self.0.flags
     }
 
@@ -337,7 +337,7 @@ impl MetaBusy {
 impl Debug for MetaBusy {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("MetaBusy")
-            .field("flags", &self.flag())
+            .field("flags", &self.flags())
             .field("count", &self.count())
             .finish()
     }
