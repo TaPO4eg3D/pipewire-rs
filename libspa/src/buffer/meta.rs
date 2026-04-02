@@ -376,7 +376,9 @@ impl MetaVideoTransformValue {
 #[cfg(feature = "v0_3_62")]
 impl Debug for MetaVideoTransformValue {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "MetaVideoTransformValue::{}",
+        write!(
+            f,
+            "MetaVideoTransformValue::{}",
             match *self {
                 Self::NONE => "None",
                 Self::ROTATED90 => "ROTATED90",
@@ -386,7 +388,7 @@ impl Debug for MetaVideoTransformValue {
                 Self::FLIPPED90 => "FLIPPED90",
                 Self::FLIPPED180 => "FLIPPED180",
                 Self::FLIPPED270 => "FLIPPED270",
-                _ => "Unknown"
+                _ => "Unknown",
             }
         )
     }
