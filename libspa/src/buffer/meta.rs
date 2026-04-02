@@ -1,6 +1,8 @@
 use crate::param::video::VideoFormat;
 use crate::utils::{Point, Rectangle, Region};
 
+use std::fmt::Debug;
+
 pub trait Metadata {
     const META_TYPE: u32;
 }
@@ -23,6 +25,7 @@ bitflags::bitflags! {
     }
 }
 
+#[derive(Clone)]
 #[repr(transparent)]
 pub struct MetaHeader(spa_sys::spa_meta_header);
 
@@ -33,6 +36,10 @@ impl MetaHeader {
 
     pub fn offset(&self) -> u32 {
         self.0.offset
+    }
+
+    pub fn flags(&self) -> MetaHeaderFlags {
+        MetaHeaderFlags::from_bits_retain(self.0.flags)
     }
 
     pub fn pts(&self) -> i64 {
@@ -46,9 +53,17 @@ impl MetaHeader {
     pub fn seq(&self) -> u64 {
         self.0.seq
     }
+}
 
-    pub fn flags(&self) -> MetaHeaderFlags {
-        MetaHeaderFlags::from_bits_retain(self.0.flags)
+impl Debug for MetaHeader {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("MetaHeader")
+            .field("flags", &self.flags())
+            .field("offset", &self.offset())
+            .field("pts", &self.pts())
+            .field("dts_offset", &self.dts_offset())
+            .field("seq", &self.seq())
+            .finish()
     }
 }
 
@@ -56,6 +71,7 @@ impl Metadata for MetaHeader {
     const META_TYPE: u32 = spa_sys::SPA_META_Header;
 }
 
+#[derive(Clone)]
 #[repr(transparent)]
 pub struct MetaRegion(spa_sys::spa_meta_region);
 
@@ -81,6 +97,15 @@ impl MetaRegion {
     }
 }
 
+impl Debug for MetaRegion {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("MetaRegion")
+            .field("region", &self.region())
+            .finish()
+    }
+}
+
+#[derive(Clone, Debug)]
 #[repr(transparent)]
 pub struct MetaVideoCrop(MetaRegion);
 
@@ -191,6 +216,17 @@ impl MetaBitmap {
     }
 }
 
+impl Debug for MetaBitmap {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("MetaBitmap")
+            .field("format", &self.format())
+            .field("size", &self.size())
+            .field("stride", &self.stride())
+            .field("offset", &self.offset())
+            .finish()
+    }
+}
+
 impl Metadata for MetaBitmap {
     const META_TYPE: u32 = spa_sys::SPA_META_Bitmap;
 }
@@ -244,6 +280,18 @@ impl MetaCursor {
     }
 }
 
+impl Debug for MetaCursor {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("MetaCursor")
+            .field("id", &self.id())
+            .field("flags", &self.flags())
+            .field("position", &self.position())
+            .field("hotspot", &self.hotspot())
+            .field("bitmap_offset", &self.bitmap_offset())
+            .finish()
+    }
+}
+
 impl Metadata for MetaCursor {
     const META_TYPE: u32 = spa_sys::SPA_META_Cursor;
 }
@@ -266,6 +314,7 @@ impl Metadata for MetaControl {
 }
 
 #[cfg(feature = "v0_3_21")]
+#[derive(Clone)]
 #[repr(transparent)]
 pub struct MetaBusy(spa_sys::spa_meta_busy);
 
@@ -285,11 +334,22 @@ impl MetaBusy {
 }
 
 #[cfg(feature = "v0_3_21")]
+impl Debug for MetaBusy {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("MetaBusy")
+            .field("flags", &self.flag())
+            .field("count", &self.count())
+            .finish()
+    }
+}
+
+#[cfg(feature = "v0_3_21")]
 impl Metadata for MetaBusy {
     const META_TYPE: u32 = spa_sys::SPA_META_Busy;
 }
 
 #[cfg(feature = "v0_3_62")]
+#[derive(Copy, Clone, PartialEq, Eq)]
 #[repr(transparent)]
 pub struct MetaVideoTransformValue(spa_sys::spa_meta_videotransform_value);
 
@@ -314,6 +374,25 @@ impl MetaVideoTransformValue {
 }
 
 #[cfg(feature = "v0_3_62")]
+impl Debug for MetaVideoTransformValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "MetaVideoTransformValue::{}",
+            match *self {
+                Self::NONE => "None",
+                Self::ROTATED90 => "ROTATED90",
+                Self::ROTATED180 => "ROTATED180",
+                Self::ROTATED270 => "ROTATED270",
+                Self::FLIPPED => "FLIPPED",
+                Self::FLIPPED90 => "FLIPPED90",
+                Self::FLIPPED180 => "FLIPPED180",
+                Self::FLIPPED270 => "FLIPPED270",
+                _ => "Unknown"
+            }
+        )
+    }
+}
+
+#[cfg(feature = "v0_3_62")]
 #[repr(transparent)]
 pub struct MetaVideoTransform(spa_sys::spa_meta_videotransform);
 
@@ -325,6 +404,15 @@ impl MetaVideoTransform {
 
     pub fn transform(&self) -> MetaVideoTransformValue {
         MetaVideoTransformValue::from_raw(self.0.transform)
+    }
+}
+
+#[cfg(feature = "v0_3_62")]
+impl Debug for MetaVideoTransform {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("MetaVideoTransform")
+            .field("transform", &self.transform())
+            .finish()
     }
 }
 
@@ -371,6 +459,18 @@ impl MetaSyncTimeline {
     /// The timeline release point - should be signaled when data is no longer accessed
     pub fn release_point(&self) -> u64 {
         self.0.release_point
+    }
+}
+
+#[cfg(feature = "v1_2_0")]
+impl Debug for MetaSyncTimeline {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("MetaSyncTimeline")
+            .field("flags", &self.flags())
+            .field("padding", &self.padding())
+            .field("acquire_point", &self.acquire_point())
+            .field("release_point", &self.release_point())
+            .finish()
     }
 }
 
