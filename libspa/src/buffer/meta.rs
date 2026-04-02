@@ -444,7 +444,7 @@ impl MetaSyncTimeline {
     }
 
     pub fn flags(&self) -> SyncTimelineFlags {
-        SyncTimelineFlags::from_bits_truncate(self.0.flags)
+        SyncTimelineFlags::from_bits_retain(self.0.flags)
     }
 
     pub fn padding(&self) -> u32 {
