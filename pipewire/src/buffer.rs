@@ -1,5 +1,6 @@
 use super::stream::Stream;
 
+use spa::buffer::meta::Metadata;
 use spa::buffer::Data;
 use std::convert::TryFrom;
 use std::ptr::NonNull;
@@ -35,6 +36,37 @@ impl Buffer<'_> {
         };
 
         slice_of_data
+    }
+
+    pub fn find_meta<T>(&self) -> Option<&T>
+    where
+        T: Metadata,
+    {
+        let buffer: *mut spa_sys::spa_buffer = unsafe { self.buf.as_ref().buffer };
+        if !buffer.is_null() && unsafe { (*buffer).n_metas != 0 } {
+            unsafe {
+                match T::META_TYPE {
+                    spa_sys::SPA_META_VideoDamage => {
+                        let meta_data =
+                            spa_sys::spa_buffer_find_meta(buffer, T::META_TYPE) as *const T;
+                        if !meta_data.is_null() {
+                            return Some(&*meta_data);
+                        }
+                    }
+                    _ => {
+                        let meta_data = spa_sys::spa_buffer_find_meta_data(
+                            buffer,
+                            T::META_TYPE,
+                            std::mem::size_of::<T>(),
+                        ) as *const T;
+                        if !meta_data.is_null() {
+                            return Some(&*meta_data);
+                        }
+                    }
+                }
+            }
+        }
+        None
     }
 
     #[cfg(feature = "v0_3_49")]

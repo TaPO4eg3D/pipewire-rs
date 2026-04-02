@@ -31,7 +31,9 @@ pub(crate) fn fmt_pascal_case(f: &mut Formatter<'_>, s: &str) -> fmt::Result {
 }
 
 pub use spa_sys::spa_fraction as Fraction;
+pub use spa_sys::spa_point as Point;
 pub use spa_sys::spa_rectangle as Rectangle;
+pub use spa_sys::spa_region as Region;
 
 use crate::pod::CanonicalFixedSizedPod;
 

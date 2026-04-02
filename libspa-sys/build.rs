@@ -29,6 +29,11 @@ fn main() {
         // These are meant for constructing C structs
         // and the generated bindings are wrong
         .blocklist_var("SPA_AUDIO_LAYOUT_.*")
+        // These used to be macros and needed custom wrappers but became inline functions in
+        // https://gitlab.freedesktop.org/pipewire/pipewire/-/commit/853c4783bcc26beac190991379f257f750a5adac
+        // and need to be blocklisted to prevent ambiguity when building with that commit
+        .blocklist_function("spa_meta_bitmap_is_valid")
+        .blocklist_function("spa_meta_cursor_is_valid")
         .prepend_enum_name(false)
         .derive_eq(true)
         // Some definitions are missing from the generated bindings without this
@@ -53,11 +58,17 @@ fn main() {
     bindings
         .write_to_file(out_path.join("bindings.rs"))
         .expect("Couldn't write bindings!");
-    const FILES: &[&str] = &["src/type-info.c", "src/command.c", "src/node-command.c"];
+    const FILES: &[&str] = &[
+        "src/type-info.c",
+        "src/command.c",
+        "src/node-command.c",
+        "src/meta.c",
+    ];
     let cc_files = &[
         PathBuf::from(FILES[0]),
         PathBuf::from(FILES[1]),
         PathBuf::from(FILES[2]),
+        PathBuf::from(FILES[3]),
         out_path.join("static_fns.c"),
     ];
 
