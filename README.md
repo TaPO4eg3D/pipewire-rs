@@ -1,9 +1,5 @@
 # pipewire-rs
 
-> [!caution]
-> pipewire-rs is currently not actively maintained.
-> If you are interested in maintaining the project, please see https://gitlab.freedesktop.org/pipewire/pipewire-rs/-/issues/113
-
 ### Rust bindings for pipewire and SPA libraries
 
 - Documentation
