@@ -8,9 +8,13 @@ use std::rc::Rc;
 use std::{cell::RefCell, collections::HashMap};
 
 use pw::{
+    client::Client,
+    device::Device,
+    factory::Factory,
     link::Link,
     loop_::Signal,
     metadata::Metadata,
+    module::Module,
     node::Node,
     port::Port,
     properties::properties,
@@ -161,12 +165,52 @@ fn monitor(remote: Option<String>) -> Result<(), pw::Error> {
 
                         Some((Box::new(metadata), Box::new(obj_listener)))
                     }
-                    ObjectType::Module
-                    | ObjectType::Device
-                    | ObjectType::Factory
-                    | ObjectType::Client => {
-                        // TODO
-                        None
+                    ObjectType::Module => {
+                        let module: Module = registry.bind(obj).unwrap();
+                        let obj_listener = module
+                            .add_listener_local()
+                            .info(|info| {
+                                dbg!(info);
+                            })
+                            .register();
+
+                        Some((Box::new(module), Box::new(obj_listener)))
+                    }
+                    ObjectType::Device => {
+                        let device: Device = registry.bind(obj).unwrap();
+                        let obj_listener = device
+                            .add_listener_local()
+                            .info(|info| {
+                                dbg!(info);
+                            })
+                            .register();
+
+                        Some((Box::new(device), Box::new(obj_listener)))
+                    }
+                    ObjectType::Factory => {
+                        let factory: Factory = registry.bind(obj).unwrap();
+                        let obj_listener = factory
+                            .add_listener_local()
+                            .info(|info| {
+                                dbg!(info);
+                            })
+                            .register();
+
+                        Some((Box::new(factory), Box::new(obj_listener)))
+                    }
+                    ObjectType::Client => {
+                        let client: Client = registry.bind(obj).unwrap();
+                        let obj_listener = client
+                            .add_listener_local()
+                            .info(|info| {
+                                dbg!(info);
+                            })
+                            .permissions(|idx, permissions| {
+                                dbg!(idx, permissions);
+                            })
+                            .register();
+
+                        Some((Box::new(client), Box::new(obj_listener)))
                     }
                     _ => {
                         dbg!(obj);
