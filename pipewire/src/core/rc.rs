@@ -22,6 +22,12 @@ struct CoreRcInner {
     _context: crate::context::ContextRc,
 }
 
+/// Reference counting smart pointer providing shared ownership of a PipeWire [core](super).
+///
+/// For the non-owning variant, see [`CoreWeak`].
+/// For unique ownership, see [`CoreBox`].
+///
+/// For an explanation of these, see [Smart pointers to PipeWire objects](crate#smart-pointers-to-pipewire-objects).
 #[derive(Debug, Clone)]
 pub struct CoreRc {
     inner: Rc<CoreRcInner>,
@@ -76,6 +82,9 @@ impl AsRef<Core> for CoreRc {
     }
 }
 
+/// Non-owning reference to a [core](super) managed by [`CoreRc`].
+///
+/// The core can be accessed by calling [`upgrade`](Self::upgrade).
 pub struct CoreWeak {
     weak: Weak<CoreRcInner>,
 }

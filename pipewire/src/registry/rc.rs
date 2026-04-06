@@ -18,6 +18,12 @@ struct RegistryRcInner {
     _core: crate::core::CoreRc,
 }
 
+/// Reference counting smart pointer providing shared ownership of a PipeWire [registry](super).
+///
+/// For the non-owning variant, see [`RegistryWeak`].
+/// For unique ownership, see [`RegistryBox`].
+///
+/// For an explanation of these, see [Smart pointers to PipeWire objects](crate#smart-pointers-to-pipewire-objects).
 #[derive(Debug, Clone)]
 pub struct RegistryRc {
     inner: Rc<RegistryRcInner>,
@@ -65,6 +71,9 @@ impl AsRef<Registry> for RegistryRc {
     }
 }
 
+/// Non-owning reference to a [registry](super) managed by [`RegistryRc`].
+///
+/// The registry can be accessed by calling [`upgrade`](Self::upgrade).
 pub struct RegistryWeak {
     weak: Weak<RegistryRcInner>,
 }

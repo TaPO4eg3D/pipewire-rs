@@ -23,6 +23,12 @@ struct LoopRcInner {
     loop_: LoopBox,
 }
 
+/// Reference counting smart pointer providing shared ownership of a PipeWire [loop](super).
+///
+/// For the non-owning variant, see [`LoopWeak`].
+/// For unique ownership, see [`LoopBox`].
+///
+/// For an explanation of these, see [Smart pointers to PipeWire objects](crate#smart-pointers-to-pipewire-objects).
 #[derive(Clone, Debug)]
 pub struct LoopRc {
     inner: Rc<LoopRcInner>,
@@ -76,6 +82,9 @@ impl std::convert::AsRef<Loop> for LoopRc {
     }
 }
 
+/// Non-owning reference to a [loop](super) managed by [`LoopRc`].
+///
+/// The loop can be accessed by calling [`upgrade`](Self::upgrade).
 pub struct LoopWeak {
     weak: Weak<LoopRcInner>,
 }

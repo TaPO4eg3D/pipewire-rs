@@ -7,6 +7,11 @@ use crate::core::Core;
 
 use super::Registry;
 
+/// Smart pointer providing unique ownership of a PipeWire [registry](super).
+///
+/// For shared ownership, see [`RegistryRc`](super::RegistryRc).
+///
+/// For an explanation of these, see [Smart pointers to PipeWire objects](crate#smart-pointers-to-pipewire-objects).
 #[derive(Debug)]
 pub struct RegistryBox<'c> {
     ptr: ptr::NonNull<pw_sys::pw_registry>,

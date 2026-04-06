@@ -24,6 +24,12 @@ struct StreamRcInner {
     _core: CoreRc,
 }
 
+/// Reference counting smart pointer providing shared ownership of a PipeWire [stream](super).
+///
+/// For the non-owning variant, see [`StreamWeak`].
+/// For unique ownership, see [`StreamBox`].
+///
+/// For an explanation of these, see [Smart pointers to PipeWire objects](crate#smart-pointers-to-pipewire-objects).
 #[derive(Clone, Debug)]
 pub struct StreamRc {
     inner: Rc<StreamRcInner>,
@@ -79,6 +85,9 @@ impl std::convert::AsRef<Stream> for StreamRc {
     }
 }
 
+/// Non-owning reference to a [stream](super) managed by [`StreamRc`].
+///
+/// The stream can be accessed by calling [`upgrade`](Self::upgrade).
 pub struct StreamWeak {
     weak: Weak<StreamRcInner>,
 }

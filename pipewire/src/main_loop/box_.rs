@@ -7,6 +7,11 @@ use crate::Error;
 
 use super::MainLoop;
 
+/// Smart pointer providing unique ownership of a PipeWire [main loop](super).
+///
+/// For shared ownership, see [`MainLoopRc`](super::MainLoopRc).
+///
+/// For an explanation of these, see [Smart pointers to PipeWire objects](crate#smart-pointers-to-pipewire-objects).
 #[derive(Debug)]
 pub struct MainLoopBox {
     ptr: std::ptr::NonNull<pw_sys::pw_main_loop>,

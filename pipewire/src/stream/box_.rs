@@ -10,6 +10,11 @@ use std::{
 
 use super::Stream;
 
+/// Smart pointer providing unique ownership of a PipeWire [stream](super).
+///
+/// For shared ownership, see [`StreamRc`](super::StreamRc).
+///
+/// For an explanation of these, see [Smart pointers to PipeWire objects](crate#smart-pointers-to-pipewire-objects).
 pub struct StreamBox<'c> {
     ptr: ptr::NonNull<pw_sys::pw_stream>,
     core: PhantomData<&'c Core>,

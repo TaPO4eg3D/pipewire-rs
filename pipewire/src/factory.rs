@@ -1,6 +1,10 @@
 // Copyright The pipewire-rs Contributors.
 // SPDX-License-Identifier: MIT
 
+//! Factories are objects that create other objects.
+//!
+//! This module contains wrappers for [`pw_factory`](pw_sys::pw_factory) and related items.
+
 use bitflags::bitflags;
 use libc::c_void;
 use std::ops::Deref;
@@ -14,6 +18,7 @@ use crate::{
 };
 use spa::spa_interface_call_method;
 
+/// A [proxy][Proxy] to a [factory](self).
 #[derive(Debug)]
 pub struct Factory {
     proxy: Proxy,
@@ -42,7 +47,7 @@ impl ProxyT for Factory {
 
 impl Factory {
     // TODO: add non-local version when we'll bind pw_thread_loop_start()
-    #[must_use]
+    #[must_use = "Use the builder to register event callbacks"]
     pub fn add_listener_local(&self) -> FactoryListenerLocalBuilder<'_> {
         FactoryListenerLocalBuilder {
             factory: self,
@@ -57,6 +62,20 @@ struct ListenerLocalCallbacks {
     info: Option<Box<dyn Fn(&FactoryInfoRef)>>,
 }
 
+/// A builder for registering factory event callbacks.
+///
+/// Use [`Factory::add_listener_local`] to create this and register callbacks that will be called when events of interest occur.
+/// After adding callbacks, use [`register`](Self::register) to get back a [`FactoryListener`].
+///
+/// # Examples
+/// ```
+/// # use pipewire::factory::Factory;
+/// # fn example(factory: Factory) {
+/// let factory_listener = factory.add_listener_local()
+///     .info(|info| println!("New factory info: {info:?}"))
+///     .register();
+/// # }
+/// ```
 pub struct FactoryListenerLocalBuilder<'a> {
     factory: &'a Factory,
     cbs: ListenerLocalCallbacks,
@@ -167,6 +186,11 @@ impl fmt::Debug for FactoryInfo {
     }
 }
 
+/// An owned listener for factory events.
+///
+/// This is created by [`FactoryListenerLocalBuilder`] and will receive events as long as it is alive.
+/// When this gets dropped, the listener gets unregistered and no events will be received by it.
+#[must_use = "Listeners unregister themselves when dropped. Keep the listener alive in order to receive events."]
 pub struct FactoryListener {
     // Need to stay allocated while the listener is registered
     #[allow(dead_code)]
@@ -185,7 +209,21 @@ impl Drop for FactoryListener {
 }
 
 impl<'a> FactoryListenerLocalBuilder<'a> {
-    #[must_use]
+    /// Set the factory `info` event callback of the listener.
+    ///
+    /// # Callback parameters
+    /// `info`: Info about the factory
+    ///
+    /// # Examples
+    /// ```
+    /// # use pipewire::factory::Factory;
+    /// # fn example(factory: Factory) {
+    /// let factory_listener = factory.add_listener_local()
+    ///     .info(|info| println!("New factory info: {info:?}"))
+    ///     .register();
+    /// # }
+    /// ```
+    #[must_use = "Call `.register()` to start receiving events"]
     pub fn info<F>(mut self, info: F) -> Self
     where
         F: Fn(&FactoryInfoRef) + 'static,
@@ -194,7 +232,7 @@ impl<'a> FactoryListenerLocalBuilder<'a> {
         self
     }
 
-    #[must_use]
+    /// Subscribe to events and register any provided callbacks.
     pub fn register(self) -> FactoryListener {
         unsafe extern "C" fn factory_events_info(
             data: *mut c_void,

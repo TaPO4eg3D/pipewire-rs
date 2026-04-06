@@ -1,3 +1,12 @@
+// Copyright The pipewire-rs Contributors.
+// SPDX-License-Identifier: MIT
+
+//! Links connect two [ports](crate::port) of opposite direction, making media flow from the output port to the input port.
+//!
+//! A link negotiates a format and buffers between ports. A port can be linked to many other ports and PipeWire will manage mixing and duplicating the buffers.
+//!
+//! This module contains wrappers for [`pw_link`](pw_sys::pw_link) and related items.
+
 use std::{
     ffi::{c_void, CStr},
     fmt, mem,
@@ -14,6 +23,7 @@ use crate::{
     types::ObjectType,
 };
 
+/// A [proxy][Proxy] to a [link](self).
 #[derive(Debug)]
 pub struct Link {
     proxy: Proxy,
@@ -41,7 +51,7 @@ impl ProxyT for Link {
 }
 
 impl Link {
-    #[must_use]
+    #[must_use = "Use the builder to register event callbacks"]
     pub fn add_listener_local(&self) -> LinkListenerLocalBuilder<'_> {
         LinkListenerLocalBuilder {
             link: self,
@@ -50,6 +60,11 @@ impl Link {
     }
 }
 
+/// An owned listener for link events.
+///
+/// This is created by [`LinkListenerLocalBuilder`] and will receive events as long as it is alive.
+/// When this gets dropped, the listener gets unregistered and no events will be received by it.
+#[must_use = "Listeners unregister themselves when dropped. Keep the listener alive in order to receive events."]
 pub struct LinkListener {
     // Need to stay allocated while the listener is registered
     #[allow(dead_code)]
@@ -73,13 +88,41 @@ struct ListenerLocalCallbacks {
     info: Option<Box<dyn Fn(&LinkInfoRef)>>,
 }
 
+/// A builder for registering link event callbacks.
+///
+/// Use [`Link::add_listener_local`] to create this and register callbacks that will be called when events of interest occur.
+/// After adding callbacks, use [`register`](Self::register) to get back a [`LinkListener`].
+///
+/// # Examples
+/// ```
+/// # use pipewire::link::Link;
+/// # fn example(link: Link) {
+/// let link_listener = link.add_listener_local()
+///     .info(|info| println!("New link info: {info:?}"))
+///     .register();
+/// # }
+/// ```
 pub struct LinkListenerLocalBuilder<'link> {
     link: &'link Link,
     cbs: ListenerLocalCallbacks,
 }
 
 impl<'a> LinkListenerLocalBuilder<'a> {
-    #[must_use]
+    /// Set the link `info` event callback of the listener.
+    ///
+    /// # Callback parameters
+    /// `info`: Info about the link.
+    ///
+    /// # Examples
+    /// ```
+    /// # use pipewire::link::Link;
+    /// # fn example(link: Link) {
+    /// let link_listener = link.add_listener_local()
+    ///     .info(|info| println!("New link info: {info:?}"))
+    ///     .register();
+    /// # }
+    /// ```
+    #[must_use = "Call `.register()` to start receiving events"]
     pub fn info<F>(mut self, info: F) -> Self
     where
         F: Fn(&LinkInfoRef) + 'static,
@@ -88,7 +131,7 @@ impl<'a> LinkListenerLocalBuilder<'a> {
         self
     }
 
-    #[must_use]
+    /// Subscribe to events and register any provided callbacks.
     pub fn register(self) -> LinkListener {
         unsafe extern "C" fn link_events_info(
             data: *mut c_void,

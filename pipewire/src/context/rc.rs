@@ -34,6 +34,11 @@ impl fmt::Debug for ContextRcInner {
     }
 }
 
+/// Reference counting smart pointer providing shared ownership of a PipeWire [context](super).
+///
+/// For the non-owning variant, see [`ContextWeak`]. For unique ownership, see [`ContextBox`].
+///
+/// For an explanation of these, see [Smart pointers to PipeWire objects](crate#smart-pointers-to-pipewire-objects).
 #[derive(Clone, Debug)]
 pub struct ContextRc {
     inner: Rc<ContextRcInner>,
@@ -114,6 +119,9 @@ impl std::convert::AsRef<Context> for ContextRc {
     }
 }
 
+/// Non-owning reference to a [context](super) managed by [`ContextRc`].
+///
+/// The context can be accessed by calling [`upgrade`](Self::upgrade).
 pub struct ContextWeak {
     weak: Weak<ContextRcInner>,
 }

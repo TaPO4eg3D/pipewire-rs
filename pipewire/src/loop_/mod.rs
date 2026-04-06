@@ -1,6 +1,12 @@
 // Copyright The pipewire-rs Contributors.
 // SPDX-License-Identifier: MIT
 
+//! The PipeWire event loop responsible for listening to and handling events.
+//!
+//! For a wrapper that continuously runs a loop in the current thread, see [`main_loop`](crate::main_loop).
+//!
+//! This module contains wrappers for [`pw_loop`](pw_sys::pw_loop) and related items.
+
 use std::{convert::TryInto, os::unix::prelude::*, ptr, time::Duration};
 
 use libc::{c_int, c_void};
@@ -14,13 +20,13 @@ pub use box_::*;
 mod rc;
 pub use rc::*;
 
-/// A transparent wrapper around a raw [`pw_loop`](`pw_sys::pw_loop`).
-/// It is usually only seen in a reference (`&Loop`), and does not own the `pw_loop`.
+/// Transparent wrapper around a [loop](self).
 ///
-/// Owned versions, [`LoopRc`] for shared ownership and [`LoopBox`] for unique ownership, are available,
-/// which lets you create and own a [`pw_loop`](`pw_sys::pw_loop`).
+/// This does not own the underlying object and is usually seen behind a `&` reference.
 ///
-/// Other objects, such as [`MainLoop`](`crate::main_loop::MainLoop`), can also contain loops.
+/// For owning wrappers that can construct loops, see [`LoopBox`] and [`LoopRc`].
+///
+/// For an explanation of these, see [Smart pointers to PipeWire objects](crate#smart-pointers-to-pipewire-objects).
 #[repr(transparent)]
 pub struct Loop(pw_sys::pw_loop);
 

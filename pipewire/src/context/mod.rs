@@ -1,6 +1,12 @@
 // Copyright The pipewire-rs Contributors.
 // SPDX-License-Identifier: MIT
 
+//! The context manages all locally available resources.
+//!
+//! It can be used to connect to another PipeWire instance (the main daemon, for example) and interact with it.
+//!
+//! This module contains wrappers for [`pw_context`](pw_sys::pw_context) and related items.
+
 use std::{
     os::fd::{IntoRawFd, OwnedFd},
     ptr,
@@ -17,6 +23,14 @@ pub use box_::*;
 mod rc;
 pub use rc::*;
 
+/// Transparent wrapper around a [context](self).
+///
+/// This does not own the underlying object and is usually seen behind a `&` reference.
+///
+/// For owning wrappers that can construct a context, see [`ContextBox`] and [`ContextRc`].
+///
+/// For an explanation of these, see [Smart pointers to PipeWire
+/// objects](crate#smart-pointers-to-pipewire-objects).
 #[repr(transparent)]
 pub struct Context(pw_sys::pw_context);
 

@@ -1,9 +1,9 @@
 // Copyright The pipewire-rs Contributors.
 // SPDX-License-Identifier: MIT
 
-//! This module provides a channel for communicating with a thread running a pipewire loop.
-//! The channel is split into two types, [`Sender`] and [`Receiver`].
+//! A channel for communicating with a thread running a PipeWire [loop](crate::loop_).
 //!
+//! The channel is split into two types, [`Sender`] and [`Receiver`].
 //! It can be created using the [`channel`] function.
 //! The returned receiver can then be attached to a pipewire loop, and the sender can be used to send messages to
 //! the receiver.

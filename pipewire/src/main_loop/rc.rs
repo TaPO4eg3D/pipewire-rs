@@ -19,6 +19,12 @@ struct MainLoopRcInner {
     main_loop: MainLoopBox,
 }
 
+/// Reference counting smart pointer providing shared ownership of a PipeWire [main loop](super).
+///
+/// For the non-owning variant, see [`MainLoopWeak`].
+/// For unique ownership, see [`MainLoopBox`].
+///
+/// For an explanation of these, see [Smart pointers to PipeWire objects](crate#smart-pointers-to-pipewire-objects).
 #[derive(Debug, Clone)]
 pub struct MainLoopRc {
     inner: Rc<MainLoopRcInner>,
@@ -78,6 +84,9 @@ impl std::convert::AsRef<Loop> for MainLoopRc {
     }
 }
 
+/// Non-owning reference to a [main loop](super) managed by [`MainLoopRc`].
+///
+/// The main loop can be accessed by calling [`upgrade`](Self::upgrade).
 pub struct MainLoopWeak {
     weak: Weak<MainLoopRcInner>,
 }

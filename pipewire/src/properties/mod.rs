@@ -1,12 +1,23 @@
 // Copyright The pipewire-rs Contributors.
 // SPDX-License-Identifier: MIT
 
+//! Properties are used to pass around arbitrary key/value pairs.
+//!
+//! This module contains wrappers for [`pw_properties`](pw_sys::pw_properties) and related items.
+
 use std::{ffi::CString, fmt, ptr};
 
 mod box_;
 pub use box_::*;
 
-/// A collection of key/value pairs.
+/// Transparent wrapper around a [properties](self) object.
+///
+/// This does not own the underlying object and is usually seen behind a `&` reference.
+///
+/// For an owning wrapper that can construct properties, see [`PropertiesBox`].
+///
+/// For an explanation of these, see [Smart pointers to PipeWire
+/// objects](crate#smart-pointers-to-pipewire-objects).
 #[repr(transparent)]
 pub struct Properties(pw_sys::pw_properties);
 

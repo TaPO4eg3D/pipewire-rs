@@ -6,6 +6,11 @@ use std::{ops::Deref, ptr};
 use super::Loop;
 use crate::Error;
 
+/// Smart pointer providing unique ownership of a PipeWire [loop](super).
+///
+/// For shared ownership, see [`LoopRc`](super::LoopRc).
+///
+/// For an explanation of these, see [Smart pointers to PipeWire objects](crate#smart-pointers-to-pipewire-objects).
 #[derive(Debug)]
 pub struct LoopBox {
     ptr: std::ptr::NonNull<pw_sys::pw_loop>,

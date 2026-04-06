@@ -7,6 +7,11 @@ use crate::{loop_::Loop, properties::PropertiesBox, Error};
 
 use super::Context;
 
+/// Smart pointer providing unique ownership of a PipeWire [context](super).
+///
+/// For shared ownership, see [`ContextRc`](super::ContextRc).
+///
+/// For an explanation of these, see [Smart pointers to PipeWire objects](crate#smart-pointers-to-pipewire-objects).
 #[derive(Debug)]
 pub struct ContextBox<'l> {
     ptr: std::ptr::NonNull<pw_sys::pw_context>,

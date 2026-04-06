@@ -16,6 +16,7 @@ use crate::{
 };
 use spa::spa_interface_call_method;
 
+/// A [proxy][Proxy] to a metadata.
 #[derive(Debug)]
 pub struct Metadata {
     proxy: Proxy,
@@ -43,6 +44,7 @@ impl ProxyT for Metadata {
 }
 
 impl Metadata {
+    #[must_use = "Use the builder to register event callbacks"]
     pub fn add_listener_local(&self) -> MetadataListenerLocalBuilder<'_> {
         MetadataListenerLocalBuilder {
             metadata: self,
@@ -50,6 +52,12 @@ impl Metadata {
         }
     }
 
+    /// Set a metadata property.
+    ///
+    /// # Permissions
+    /// Requires [`W`](crate::permissions::PermissionFlags::W) and
+    /// [`X`](crate::permissions::PermissionFlags::X) on the metadata.
+    /// Also requires [`M`](crate::permissions::PermissionFlags::M) on the `subject` global.
     pub fn set_property(&self, subject: u32, key: &str, type_: Option<&str>, value: Option<&str>) {
         // Keep CStrings allocated here in order for pointers to remain valid.
         let key = CString::new(key).expect("Invalid byte in metadata key");
@@ -60,6 +68,12 @@ impl Metadata {
         Metadata::set_property_cstr(self, subject, key_cstr, type_.as_deref(), value.as_deref())
     }
 
+    /// Set a metadata property.
+    ///
+    /// # Permissions
+    /// Requires [`W`](crate::permissions::PermissionFlags::W) and
+    /// [`X`](crate::permissions::PermissionFlags::X) on the metadata.
+    /// Also requires [`M`](crate::permissions::PermissionFlags::M) on the `subject` global.
     pub fn set_property_cstr(
         &self,
         subject: u32,
@@ -80,6 +94,11 @@ impl Metadata {
         }
     }
 
+    /// Clear all metadata.
+    ///
+    /// # Permissions
+    /// Requires [`W`](crate::permissions::PermissionFlags::W) and
+    /// [`X`](crate::permissions::PermissionFlags::X) on the metadata.
     pub fn clear(&self) {
         unsafe {
             spa::spa_interface_call_method!(
@@ -91,6 +110,24 @@ impl Metadata {
     }
 }
 
+/// An owned listener for metadata events.
+///
+/// This is created by [`MetadataListenerLocalBuilder`] and will receive events as long as it is alive.
+/// When this gets dropped, the listener gets unregistered and no events will be received by it.
+///
+/// # Examples
+/// ```
+/// # use pipewire::metadata::Metadata;
+/// # fn example(metadata: Metadata) {
+/// let metadata_listener = metadata.add_listener_local()
+///     .property(|subject, key, type_, value| {
+///         println!("Metadata property update: subject {subject}, key {key:?}, type {type_:?}, value {value:?}");
+///         0
+///     })
+///     .register();
+/// # }
+/// ```
+#[must_use = "Listeners unregister themselves when dropped. Keep the listener alive in order to receive events."]
 pub struct MetadataListener {
     // Need to stay allocated while the listener is registered
     #[allow(dead_code)]
@@ -114,19 +151,49 @@ struct ListenerLocalCallbacks {
     property: Option<Box<dyn Fn(u32, Option<&str>, Option<&str>, Option<&str>) -> i32>>,
 }
 
-#[must_use]
+/// A builder for registering metadata event callbacks.
+///
+/// Use [`Metadata::add_listener_local`] to create this and register callbacks that will be called when events of interest occur.
+/// After adding callbacks, use [`register`](Self::register) to get back a [`MetadataListener`].
+/// # Examples
+/// ```
+/// # use pipewire::metadata::Metadata;
+/// # fn example(metadata: Metadata) {
+/// let metadata_listener = metadata.add_listener_local()
+///     .property(|subject, key, type_, value| {
+///         println!("Metadata property update: subject {subject}, key {key:?}, type {type_:?}, value {value:?}");
+///         0
+///     })
+///     .register();
+/// # }
+/// ```
 pub struct MetadataListenerLocalBuilder<'meta> {
     metadata: &'meta Metadata,
     cbs: ListenerLocalCallbacks,
 }
 
 impl<'meta> MetadataListenerLocalBuilder<'meta> {
-    /// Add property changed callback.
+    /// Set the metadata `property` event callback of the listener.
     ///
-    /// Callback parameters: subject, key, type, value.
+    /// # Callback parameters
+    /// `subject`, `key`, `type`, `value`.
     ///
-    /// `None` for `value` means removal of property.
-    /// `None` for `key` means removal of all properties.
+    /// [`None`] for `key` means removal of all properties.
+    /// [`None`] for `value` means removal of property with key `key`.  
+    ///
+    /// # Examples
+    /// ```
+    /// # use pipewire::metadata::Metadata;
+    /// # fn example(metadata: Metadata) {
+    /// let metadata_listener = metadata.add_listener_local()
+    ///     .property(|subject, key, type_, value| {
+    ///         println!("Metadata property update: subject {subject}, key {key:?}, type {type_:?}, value {value:?}");
+    ///         0
+    ///     })
+    ///     .register();
+    /// # }
+    /// ```
+    #[must_use = "Call `.register()` to start receiving events"]
     pub fn property<F>(mut self, property: F) -> Self
     where
         F: Fn(u32, Option<&str>, Option<&str>, Option<&str>) -> i32 + 'static,
@@ -135,7 +202,7 @@ impl<'meta> MetadataListenerLocalBuilder<'meta> {
         self
     }
 
-    #[must_use]
+    /// Subscribe to events and register any provided callbacks.
     pub fn register(self) -> MetadataListener {
         unsafe extern "C" fn metadata_events_property(
             data: *mut c_void,

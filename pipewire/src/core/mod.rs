@@ -1,6 +1,10 @@
 // Copyright The pipewire-rs Contributors.
 // SPDX-License-Identifier: MIT
 
+//! The core singleton object used in communication with a PipeWire instance.
+//!
+//! This module contains wrappers for [`pw_core`](pw_sys::pw_core) and related items.
+
 use bitflags::bitflags;
 use libc::{c_char, c_void};
 use std::{
@@ -27,6 +31,14 @@ pub use rc::*;
 
 pub const PW_ID_CORE: u32 = pw_sys::PW_ID_CORE;
 
+/// Transparent wrapper around a [core](self).
+///
+/// This does not own the underlying object and is usually seen behind a `&` reference.
+///
+/// For owning wrappers, see [`CoreBox`] and [`CoreRc`].
+///
+/// For an explanation of these, see [Smart pointers to PipeWire
+/// objects](crate#smart-pointers-to-pipewire-objects).
 #[repr(transparent)]
 pub struct Core(pw_sys::pw_core);
 
@@ -40,7 +52,7 @@ impl Core {
     }
 
     // TODO: add non-local version when we'll bind pw_thread_loop_start()
-    #[must_use]
+    #[must_use = "Use the builder to register event callbacks"]
     pub fn add_listener_local(&self) -> ListenerLocalBuilder<'_> {
         ListenerLocalBuilder {
             core: self,
@@ -62,6 +74,12 @@ impl Core {
         }
     }
 
+    /// Do server roundtrip.
+    ///
+    /// Ask the server to emit the [`done`](ListenerLocalBuilder::done) event with `seq`.
+    ///
+    /// Since methods are handled in-order and events are delivered in-order, this can be used as a barrier
+    /// to ensure all previous methods and the resulting events have been handled.
     pub fn sync(&self, seq: i32) -> Result<AsyncSeq, Error> {
         let res = unsafe {
             spa_interface_call_method!(
@@ -190,11 +208,35 @@ struct ListenerLocalCallbacks {
                                                      // TODO: ping, remove_id, bound_id, add_mem, remove_mem
 }
 
+/// A builder for registering core event callbacks.
+///
+/// Use [`Core::add_listener_local`] to create this and register callbacks that will be called when events of interest occur.
+/// After adding callbacks, use [`register`](Self::register) to get back a
+/// [`core::Listener`](Listener).
+///
+/// # Examples
+/// ```
+/// # use pipewire::core::Core;
+/// # fn example(core: Core) {
+/// let core_listener = core.add_listener_local()
+///     .info(|info| println!("New core info: {info:?}"))
+///     .done(|id, seq| println!("Object {id} received done with seq {seq:?}"))
+///     .error(|id, seq, res, message| {
+///         println!("Object {id} received error with seq {seq:?}, error code {res} and message {message}")
+///     })
+///     .register();
+/// # }
+/// ```
 pub struct ListenerLocalBuilder<'a> {
     core: &'a Core,
     cbs: ListenerLocalCallbacks,
 }
 
+/// An owned listener for core events.
+///
+/// This is created by [`core::ListenerLocalBuilder`][ListenerLocalBuilder] and will receive events as long as it is alive.
+/// When this gets dropped, the listener gets unregistered and no events will be received by it.
+#[must_use = "Listeners unregister themselves when dropped. Keep the listener alive in order to receive events."]
 pub struct Listener {
     // Need to stay allocated while the listener is registered
     #[allow(dead_code)]
@@ -217,7 +259,23 @@ impl Drop for Listener {
 }
 
 impl<'a> ListenerLocalBuilder<'a> {
-    #[must_use]
+    /// Set the core `info` event callback of the listener.
+    ///
+    /// This event is emitted when first bound to the core or when the hello method is called.
+    ///
+    /// # Callback parameters
+    /// `info`: New core info
+    ///
+    /// # Examples
+    /// ```
+    /// # use pipewire::core::Core;
+    /// # fn example(core: Core) {
+    /// let core_listener = core.add_listener_local()
+    ///     .info(|info| println!("New core info: {info:?}"))
+    ///     .register();
+    /// # }
+    /// ```
+    #[must_use = "Call `.register()` to start receiving events"]
     pub fn info<F>(mut self, info: F) -> Self
     where
         F: Fn(&Info) + 'static,
@@ -226,7 +284,24 @@ impl<'a> ListenerLocalBuilder<'a> {
         self
     }
 
-    #[must_use]
+    /// Set the core `done` event callback of the listener.
+    ///
+    /// This event is emitted as a result of a [`sync`](Core::sync) call with the same seq number.
+    ///
+    /// # Callback parameters
+    /// `id`: Object where the done event occurred  
+    /// `seq`: The seq number passed to the [`sync`](Core::sync) call that emitted this.
+    ///
+    /// # Examples
+    /// ```
+    /// # use pipewire::core::Core;
+    /// # fn example(core: Core) {
+    /// let core_listener = core.add_listener_local()
+    ///     .done(|id, seq| println!("Object {id} received done with seq {seq:?}"))
+    ///     .register();
+    /// # }
+    /// ```
+    #[must_use = "Call `.register()` to start receiving events"]
     pub fn done<F>(mut self, done: F) -> Self
     where
         F: Fn(u32, AsyncSeq) + 'static,
@@ -235,7 +310,31 @@ impl<'a> ListenerLocalBuilder<'a> {
         self
     }
 
-    #[must_use]
+    /// Set the core `error` event callback of the listener.
+    ///
+    /// This event is emitted when a fatal (non-recoverable) error has occurred. The `id` argument is the proxy object
+    /// where the error occurred, most often in response to a request to that object. The message is a brief description of the error, for (debugging) convenience.
+    ///
+    /// This event is usually also emitted on the proxy object with id `id`.
+    ///
+    /// # Callback parameters
+    /// `id`: Object where the error occurred  
+    /// `seq`: Sequence number that generated the error  
+    /// `res`: Error code  
+    /// `message`: Error description
+    ///
+    /// # Examples
+    /// ```
+    /// # use pipewire::core::Core;
+    /// # fn example(core: Core) {
+    /// let core_listener = core.add_listener_local()
+    ///     .error(|id, seq, res, message| {
+    ///         println!("Object {id} received error with seq {seq:?}, error code {res} and message {message}")
+    ///     })
+    ///     .register();
+    /// # }
+    /// ```
+    #[must_use = "Call `.register()` to start receiving events"]
     pub fn error<F>(mut self, error: F) -> Self
     where
         F: Fn(u32, i32, i32, &str) + 'static,
@@ -244,7 +343,7 @@ impl<'a> ListenerLocalBuilder<'a> {
         self
     }
 
-    #[must_use]
+    /// Subscribe to events and register any provided callbacks.
     pub fn register(self) -> Listener {
         unsafe extern "C" fn core_events_info(
             data: *mut c_void,

@@ -1,6 +1,10 @@
 // Copyright The pipewire-rs Contributors.
 // SPDX-License-Identifier: MIT
 
+//! Clients represent an open connection of a client process with the server.
+//!
+//! This module contains wrappers for [`pw_client`](pw_sys::pw_client) and related items.
+
 use bitflags::bitflags;
 use libc::c_void;
 use std::ops::Deref;
@@ -18,6 +22,7 @@ use crate::{
 };
 use spa::spa_interface_call_method;
 
+/// A [proxy][Proxy] to a [client](self).
 #[derive(Debug)]
 pub struct Client {
     proxy: Proxy,
@@ -46,7 +51,7 @@ impl ProxyT for Client {
 
 impl Client {
     // TODO: add non-local version when we'll bind pw_thread_loop_start()
-    #[must_use]
+    #[must_use = "Use the builder to register event callbacks"]
     pub fn add_listener_local(&self) -> ClientListenerLocalBuilder<'_> {
         ClientListenerLocalBuilder {
             client: self,
@@ -54,12 +59,32 @@ impl Client {
         }
     }
 
+    /// Send an error to the client.
+    ///
+    /// # Permissions
+    /// Requires [`W`](crate::permissions::PermissionFlags::W) and
+    /// [`X`](crate::permissions::PermissionFlags::X) permissions on the client.
+    ///
+    /// # Parameters
+    /// `id`: The global id to report the error on  
+    /// `res`: An errno style error code
+    /// `message`: An error string
     pub fn error(&self, id: u32, res: i32, message: &str) {
         let message = CString::new(message).expect("Null byte in message parameter");
         let message_cstr = message.as_c_str();
         Client::error_cstr(self, id, res, message_cstr)
     }
 
+    /// Send an error to the client.
+    ///
+    /// # Permissions
+    /// Requires [`W`](crate::permissions::PermissionFlags::W) and
+    /// [`X`](crate::permissions::PermissionFlags::X) permissions on the client.
+    ///
+    /// # Parameters
+    /// `id`: The global id to report the error on  
+    /// `res`: An errno style error code
+    /// `message`: An error string
     pub fn error_cstr(&self, id: u32, res: i32, message: &CStr) {
         unsafe {
             spa_interface_call_method!(
@@ -73,6 +98,11 @@ impl Client {
         };
     }
 
+    /// Update the client's properties.
+    ///
+    /// # Permissions
+    /// Requires [`W`](crate::permissions::PermissionFlags::W) and
+    /// [`X`](crate::permissions::PermissionFlags::X) permissions on the client.
     pub fn update_properties(&self, properties: &spa::utils::dict::DictRef) {
         unsafe {
             spa_interface_call_method!(
@@ -84,6 +114,17 @@ impl Client {
         }
     }
 
+    /// Get the client's permissions.
+    ///
+    /// A [`permissions`](ClientListenerLocalBuilder::permissions) event will be emitted.
+    ///
+    /// # Permissions
+    /// Requires [`W`](crate::permissions::PermissionFlags::W) and
+    /// [`X`](crate::permissions::PermissionFlags::X) permissions on the client.
+    ///
+    /// # Parameters
+    /// `index`: The first index to query, `0` for first  
+    /// `num`: The maximum number of items to get
     pub fn get_permissions(&self, index: u32, num: u32) {
         unsafe {
             spa_interface_call_method!(
@@ -96,6 +137,15 @@ impl Client {
         }
     }
 
+    /// Manage the permissions of the global objects for this client.
+    ///
+    /// Update the permissions of the global objects using the provided slice.
+    ///
+    /// Globals can use the default permissions or can have specific permissions assigned to them.
+    ///
+    /// # Permissions
+    /// Requires [`W`](crate::permissions::PermissionFlags::W) and
+    /// [`X`](crate::permissions::PermissionFlags::X) permissions on the client.
     pub fn update_permissions(&self, permissions: &[Permission]) {
         unsafe {
             spa_interface_call_method!(
@@ -117,6 +167,23 @@ struct ListenerLocalCallbacks {
     permissions: Option<Box<dyn Fn(u32, &[Permission])>>,
 }
 
+/// A builder for registering client event callbacks.
+///
+/// Use [`Client::add_listener_local`] to create this and register callbacks that will be called when events of interest occur.
+/// After adding callbacks, use [`register`](Self::register) to get back a [`ClientListener`].
+///
+/// # Examples
+/// ```
+/// # use pipewire::client::Client;
+/// # fn example(client: Client) {
+/// let client_listener = client.add_listener_local()
+///     .info(|info| println!("New client info: {info:?}"))
+///     .permissions(|index, permissions| {
+///         println!("New client permissions: index {index}, permissions {permissions:?}");
+///     })
+///     .register();
+/// # }
+/// ```
 pub struct ClientListenerLocalBuilder<'a> {
     client: &'a Client,
     cbs: ListenerLocalCallbacks,
@@ -215,6 +282,11 @@ impl fmt::Debug for ClientInfo {
     }
 }
 
+/// An owned listener for client events.
+///
+/// This is created by [`ClientListenerLocalBuilder`] and will receive events as long as it is alive.
+/// When this gets dropped, the listener gets unregistered and no events will be received by it.
+#[must_use = "Listeners unregister themselves when dropped. Keep the listener alive in order to receive events."]
 pub struct ClientListener {
     // Need to stay allocated while the listener is registered
     #[allow(dead_code)]
@@ -233,7 +305,20 @@ impl Drop for ClientListener {
 }
 
 impl<'a> ClientListenerLocalBuilder<'a> {
-    #[must_use]
+    /// Set the client `info` event callback of the listener.
+    ///
+    /// # Callback parameters
+    /// `info`: Info about the client
+    /// # Examples
+    /// ```
+    /// # use pipewire::client::Client;
+    /// # fn example(client: Client) {
+    /// let client_listener = client.add_listener_local()
+    ///     .info(|info| println!("New client info: {info:?}"))
+    ///     .register();
+    /// # }
+    /// ```
+    #[must_use = "Call `.register()` to start receiving events"]
     pub fn info<F>(mut self, info: F) -> Self
     where
         F: Fn(&ClientInfoRef) + 'static,
@@ -242,6 +327,26 @@ impl<'a> ClientListenerLocalBuilder<'a> {
         self
     }
 
+    /// Set the client `permissions` event callback of the listener.
+    ///
+    /// This event is emitted as a result of [`get_permissions`](Client::get_permissions).
+    ///
+    /// # Callback parameters
+    /// `index`: Index of the first permission entry  
+    /// `permissions`: The permissions
+    ///
+    /// # Examples
+    /// ```
+    /// # use pipewire::client::Client;
+    /// # fn example(client: Client) {
+    /// let client_listener = client.add_listener_local()
+    ///     .permissions(|index, permissions| {
+    ///         println!("New client permissions: index {index}, permissions {permissions:?}");
+    ///     })
+    ///     .register();
+    /// # }
+    /// ```
+    #[must_use = "Call `.register()` to start receiving events"]
     pub fn permissions<F>(mut self, permissions: F) -> Self
     where
         F: Fn(u32, &[Permission]) + 'static,
@@ -250,7 +355,7 @@ impl<'a> ClientListenerLocalBuilder<'a> {
         self
     }
 
-    #[must_use]
+    /// Subscribe to events and register any provided callbacks.
     pub fn register(self) -> ClientListener {
         unsafe extern "C" fn client_events_info(
             data: *mut c_void,

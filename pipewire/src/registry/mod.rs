@@ -1,6 +1,25 @@
 // Copyright The pipewire-rs Contributors.
 // SPDX-License-Identifier: MIT
 
+//! The registry is a singleton object that keeps track of global objects on the PipeWire instance.
+//!
+//! Global objects typically represent an actual object in PipeWire (for example, a module or node) or they are singleton objects such as the core.
+//!
+//! When a client creates a registry object, the registry object will emit a global event for each global currently in the registry.
+//! Globals come and go as a result of device hotplugs or reconfiguration or other events, and the registry will send
+//! out [`global`](self::ListenerLocalBuilder::global) and [`global_remove`](self::ListenerLocalBuilder::global_remove) events to keep the client up to date with the changes. To mark the end of the initial
+//! burst of events, the client can use the [`Core::sync`](crate::core::Core::sync) method immediately after getting the registry from the core.
+//!
+//! A client can bind to a global object by using [`bind`](Registry::bind). This creates a client-side proxy that lets the
+//! object emit events to the client and lets the client invoke methods on the object. See
+//! [`proxy`](crate::proxy).
+//!
+//! Clients can also change the permissions of the global objects that they can see. This is interesting when you want to
+//! configure a pipewire session before handing it to another application. You can, for example, hide certain existing
+//! or new objects or limit the access permissions on an object.
+//!
+//! This module contains wrappers for [`pw_registry`](pw_sys::pw_registry) and related items.
+
 use libc::{c_char, c_void};
 
 use std::{
@@ -23,6 +42,14 @@ pub use box_::*;
 mod rc;
 pub use rc::*;
 
+/// Transparent wrapper around a [registry](self).
+///
+/// This does not own the underlying object and is usually seen behind a `&` reference.
+///
+/// For owning wrappers, see [`RegistryBox`] and [`RegistryRc`].
+///
+/// For an explanation of these, see [Smart pointers to PipeWire
+/// objects](crate#smart-pointers-to-pipewire-objects).
 #[repr(transparent)]
 pub struct Registry(pw_sys::pw_registry);
 
@@ -36,7 +63,7 @@ impl Registry {
     }
 
     // TODO: add non-local version when we'll bind pw_thread_loop_start()
-    #[must_use]
+    #[must_use = "Use the builder to register event callbacks"]
     pub fn add_listener_local(&self) -> ListenerLocalBuilder<'_> {
         ListenerLocalBuilder {
             registry: self,
@@ -44,6 +71,14 @@ impl Registry {
         }
     }
 
+    /// Bind to a global object.
+    ///
+    /// Bind to the global object and get a proxy to the object. After this call, methods can be sent to the remote global object and events can be received.
+    ///
+    /// Usually this is called in callbacks for the [`global`](ListenerLocalBuilder::global) event.
+    ///
+    /// # Errors
+    /// If `T` does not match the type of the global object, [`Error::WrongProxyType`] is returned.
     pub fn bind<T: ProxyT, P: AsRef<spa::utils::dict::DictRef>>(
         &self,
         object: &GlobalObject<P>,
@@ -71,6 +106,9 @@ impl Registry {
     }
 
     /// Attempt to destroy the global object with the specified id on the remote.
+    ///
+    /// # Permissions
+    /// Requires [`X`](crate::permissions::PermissionFlags::X) permissions on the global.
     pub fn destroy_global(&self, global_id: u32) -> spa::utils::result::SpaResult {
         let result = unsafe {
             spa::spa_interface_call_method!(
@@ -94,11 +132,32 @@ struct ListenerLocalCallbacks {
     global_remove: Option<Box<GlobalRemoveCallback>>,
 }
 
+/// A builder for registering registry event callbacks.
+///
+/// Use [`Registry::add_listener_local`] to create this and register callbacks that will be called when events of interest occur.
+/// After adding callbacks, use [`register`](Self::register) to get back a
+/// [`registry::Listener`](Listener).
+///
+/// # Examples
+/// ```
+/// # use pipewire::registry::Registry;
+/// # fn example(registry: Registry) {
+/// let registry_listener = registry.add_listener_local()
+///     .global(|global| println!("New global: {global:?}"))
+///     .global_remove(|id| println!("Global with id {id} was removed"))
+///     .register();
+/// # }
+/// ```
 pub struct ListenerLocalBuilder<'a> {
     registry: &'a Registry,
     cbs: ListenerLocalCallbacks,
 }
 
+/// An owned listener for registry events.
+///
+/// This is created by [`registry::ListenerLocalBuilder`](ListenerLocalBuilder) and will receive events as long as it is alive.
+/// When this gets dropped, the listener gets unregistered and no events will be received by it.
+#[must_use = "Listeners unregister themselves when dropped. Keep the listener alive in order to receive events."]
 pub struct Listener {
     // Need to stay allocated while the listener is registered
     #[allow(dead_code)]
@@ -115,7 +174,23 @@ impl Drop for Listener {
 }
 
 impl<'a> ListenerLocalBuilder<'a> {
-    #[must_use]
+    /// Set the registry `global` event callback of the listener.
+    ///
+    /// This event is emitted when a new global object is available.
+    ///
+    /// # Callback parameters
+    /// `global`: The new global object
+    ///
+    /// # Examples
+    /// ```
+    /// # use pipewire::registry::Registry;
+    /// # fn example(registry: Registry) {
+    /// let registry_listener = registry.add_listener_local()
+    ///     .global(|global| println!("New global: {global:?}"))
+    ///     .register();
+    /// # }
+    /// ```
+    #[must_use = "Call `.register()` to start receiving events"]
     pub fn global<F>(mut self, global: F) -> Self
     where
         F: Fn(&GlobalObject<&spa::utils::dict::DictRef>) + 'static,
@@ -124,7 +199,23 @@ impl<'a> ListenerLocalBuilder<'a> {
         self
     }
 
-    #[must_use]
+    /// Set the registry `global_remove` event callback of the listener.
+    ///
+    /// This event is emitted when a global object was removed from the registry. If the client has any bindings to the global, it should destroy those.
+    ///
+    /// # Callback parameters
+    /// `id`: The id of the global that was removed
+    ///
+    /// # Examples
+    /// ```
+    /// # use pipewire::registry::Registry;
+    /// # fn example(registry: Registry) {
+    /// let registry_listener = registry.add_listener_local()
+    ///     .global_remove(|id| println!("Global with id {id} was removed"))
+    ///     .register();
+    /// # }
+    /// ```
+    #[must_use = "Call `.register()` to start receiving events"]
     pub fn global_remove<F>(mut self, global_remove: F) -> Self
     where
         F: Fn(u32) + 'static,
@@ -133,7 +224,7 @@ impl<'a> ListenerLocalBuilder<'a> {
         self
     }
 
-    #[must_use]
+    /// Subscribe to events and register any provided callbacks.
     pub fn register(self) -> Listener {
         unsafe extern "C" fn registry_events_global(
             data: *mut c_void,

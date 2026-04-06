@@ -1,6 +1,10 @@
 // Copyright The pipewire-rs Contributors.
 // SPDX-License-Identifier: MIT
 
+//! Proxy are client side representations of resources that live on a remote PipeWire instance.
+//!
+//! This module contains wrappers for [`pw_proxy`](pw_sys::pw_proxy) and related items.
+
 use libc::{c_char, c_void};
 use std::fmt;
 use std::mem;
@@ -9,6 +13,11 @@ use std::{ffi::CStr, ptr};
 
 use crate::{types::ObjectType, Error};
 
+/// A proxy to a remote object.
+///
+/// Acts as a client side proxy to an object existing in a remote pipewire instance.
+/// The proxy is responsible for converting interface functions invoked by the client to PipeWire messages.
+/// Events will call the callbacks registered in listeners.
 pub struct Proxy {
     ptr: ptr::NonNull<pw_sys::pw_proxy>,
 }
@@ -23,6 +32,7 @@ impl Proxy {
         self.ptr.as_ptr()
     }
 
+    #[must_use = "Use the builder to register event callbacks"]
     pub fn add_listener_local(&self) -> ProxyListenerLocalBuilder<'_> {
         ProxyListenerLocalBuilder {
             proxy: self,
@@ -109,6 +119,11 @@ pub trait ProxyT {
 // Trait implemented by listener on high level proxy wrappers.
 pub trait Listener {}
 
+/// An owned listener for proxy events.
+///
+/// This is created by [`ProxyListenerLocalBuilder`] and will receive events as long as it is alive.
+/// When this gets dropped, the listener gets unregistered and no events will be received by it.
+#[must_use = "Listeners unregister themselves when dropped. Keep the listener alive in order to receive events."]
 pub struct ProxyListener {
     // Need to stay allocated while the listener is registered
     #[allow(dead_code)]
@@ -135,13 +150,44 @@ struct ListenerLocalCallbacks {
     error: Option<Box<dyn Fn(i32, i32, &str)>>, // TODO: return a proper Error enum?
 }
 
+/// A builder for registering proxy event callbacks.
+///
+/// Use [`Proxy::add_listener_local`] to create this and register callbacks that will be called when events of interest occur.
+/// After adding callbacks, use [`register`](Self::register) to get back a [`ProxyListener`].
+///
+/// # Examples
+/// ```
+/// # use pipewire::proxy::Proxy;
+/// # fn example(proxy: Proxy) {
+/// let proxy_listener = proxy.add_listener_local()
+///     .destroy(|| println!("Proxy has been destroyed"))
+///     .bound(|id| println!("Proxy has been bound to global {id}"))
+///     .removed(|| println!("Proxy has been removed"))
+///     .done(|seq| println!("Proxy received done with seq {seq}"))
+///     .error(|seq, res, message| println!("Proxy error: seq {seq}, error code {res}, message {message}"))
+///     .register();
+/// # }
+/// ```
 pub struct ProxyListenerLocalBuilder<'a> {
     proxy: &'a Proxy,
     cbs: ListenerLocalCallbacks,
 }
 
 impl<'a> ProxyListenerLocalBuilder<'a> {
-    #[must_use]
+    /// Set the proxy `destroy` event callback of the listener.
+    ///
+    /// This event is emitted when the proxy is destroyed.
+    ///
+    /// # Examples
+    /// ```
+    /// # use pipewire::proxy::Proxy;
+    /// # fn example(proxy: Proxy) {
+    /// let proxy_listener = proxy.add_listener_local()
+    ///     .destroy(|| println!("Proxy has been destroyed"))
+    ///     .register();
+    /// # }
+    /// ```
+    #[must_use = "Call `.register()` to start receiving events"]
     pub fn destroy<F>(mut self, destroy: F) -> Self
     where
         F: Fn() + 'static,
@@ -150,7 +196,23 @@ impl<'a> ProxyListenerLocalBuilder<'a> {
         self
     }
 
-    #[must_use]
+    /// Set the proxy `bound` event callback of the listener.
+    ///
+    /// This event is emitted when the proxy is bound to a global id.
+    ///
+    /// # Callback parameters
+    /// `id`: The global id
+    ///
+    /// # Examples
+    /// ```
+    /// # use pipewire::proxy::Proxy;
+    /// # fn example(proxy: Proxy) {
+    /// let proxy_listener = proxy.add_listener_local()
+    ///     .bound(|id| println!("Proxy has been bound to global {id}"))
+    ///     .register();
+    /// # }
+    /// ```
+    #[must_use = "Call `.register()` to start receiving events"]
     pub fn bound<F>(mut self, bound: F) -> Self
     where
         F: Fn(u32) + 'static,
@@ -159,7 +221,21 @@ impl<'a> ProxyListenerLocalBuilder<'a> {
         self
     }
 
-    #[must_use]
+    /// Set the proxy `removed` event callback of the listener.
+    ///
+    /// This event is emitted when the proxy is removed from the server.
+    /// Drop the proxy to free it.
+    ///
+    /// # Examples
+    /// ```
+    /// # use pipewire::proxy::Proxy;
+    /// # fn example(proxy: Proxy) {
+    /// let proxy_listener = proxy.add_listener_local()
+    ///     .removed(|| println!("Proxy has been removed"))
+    ///     .register();
+    /// # }
+    /// ```
+    #[must_use = "Call `.register()` to start receiving events"]
     pub fn removed<F>(mut self, removed: F) -> Self
     where
         F: Fn() + 'static,
@@ -168,7 +244,23 @@ impl<'a> ProxyListenerLocalBuilder<'a> {
         self
     }
 
-    #[must_use]
+    /// Set the proxy `done` event callback of the listener.
+    ///
+    /// This event is emitted as a reply to the sync method.
+    ///
+    /// # Callback parameters
+    /// `seq`: The sequence number of the sync call.
+    ///
+    /// # Examples
+    /// ```
+    /// # use pipewire::proxy::Proxy;
+    /// # fn example(proxy: Proxy) {
+    /// let proxy_listener = proxy.add_listener_local()
+    ///     .done(|seq| println!("Proxy received done with seq {seq}"))
+    ///     .register();
+    /// # }
+    /// ```
+    #[must_use = "Call `.register()` to start receiving events"]
     pub fn done<F>(mut self, done: F) -> Self
     where
         F: Fn(i32) + 'static,
@@ -177,7 +269,25 @@ impl<'a> ProxyListenerLocalBuilder<'a> {
         self
     }
 
-    #[must_use]
+    /// Set the proxy `error` event callback of the listener.
+    ///
+    /// This event is emitted when an error occurs on the proxy.
+    ///
+    /// # Callback parameters
+    /// `seq`: Seqeunce number that generated the error  
+    /// `res`: Error code  
+    /// `message`: Error description
+    ///
+    /// # Examples
+    /// ```
+    /// # use pipewire::proxy::Proxy;
+    /// # fn example(proxy: Proxy) {
+    /// let proxy_listener = proxy.add_listener_local()
+    ///     .error(|seq, res, message| println!("Proxy error: seq {seq}, error code {res}, message {message}"))
+    ///     .register();
+    /// # }
+    /// ```
+    #[must_use = "Call `.register()` to start receiving events"]
     pub fn error<F>(mut self, error: F) -> Self
     where
         F: Fn(i32, i32, &str) + 'static,
@@ -186,7 +296,7 @@ impl<'a> ProxyListenerLocalBuilder<'a> {
         self
     }
 
-    #[must_use]
+    /// Subscribe to events and register any provided callbacks.
     pub fn register(self) -> ProxyListener {
         unsafe extern "C" fn proxy_destroy(data: *mut c_void) {
             let callbacks = (data as *mut ListenerLocalCallbacks).as_ref().unwrap();

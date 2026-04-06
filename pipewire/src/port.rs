@@ -1,6 +1,11 @@
 // Copyright The pipewire-rs Contributors.
 // SPDX-License-Identifier: MIT
 
+//! Ports are attached on [nodes](crate::node) and provide interfaces for input or output of data
+//! on the node.
+//!
+//! This module contains wrappers for [`pw_port`](pw_sys::pw_port) and related items.
+
 use bitflags::bitflags;
 use libc::c_void;
 use std::ops::Deref;
@@ -14,6 +19,7 @@ use crate::{
 };
 use spa::{pod::Pod, spa_interface_call_method};
 
+/// A [proxy][Proxy] to a [port](self).
 #[derive(Debug)]
 pub struct Port {
     proxy: Proxy,
@@ -21,7 +27,7 @@ pub struct Port {
 
 impl Port {
     // TODO: add non-local version when we'll bind pw_thread_loop_start()
-    #[must_use]
+    #[must_use = "Use the builder to register event callbacks"]
     pub fn add_listener_local(&self) -> PortListenerLocalBuilder<'_> {
         PortListenerLocalBuilder {
             port: self,
@@ -29,9 +35,12 @@ impl Port {
         }
     }
 
-    /// Subscribe to parameter changes
+    /// Subscribe to parameter changes.
     ///
-    /// Automatically emit `param` events for the given ids when they are changed
+    /// Automatically emit [`param`](PortListenerLocalBuilder::param) events for the `ids` when they are changed.
+    ///
+    /// # Permissions
+    /// Requires [`X`](crate::permissions::PermissionFlags::X) permissions on the port.
     // FIXME: Return result?
     pub fn subscribe_params(&self, ids: &[spa::param::ParamType]) {
         unsafe {
@@ -48,7 +57,10 @@ impl Port {
     /// Enumerate node parameters
     ///
     /// Start enumeration of node parameters. For each param, a
-    /// param event will be emitted.
+    /// [`param`](PortListenerLocalBuilder::param) event will be emitted.
+    ///
+    /// # Permissions
+    /// Requires [`X`](crate::permissions::PermissionFlags::X) permissions on the port.
     ///
     /// # Parameters
     /// `seq`: a sequence number to place in the reply \
@@ -104,6 +116,25 @@ struct ListenerLocalCallbacks {
     param: Option<Box<dyn Fn(i32, spa::param::ParamType, u32, u32, Option<&Pod>)>>,
 }
 
+/// A builder for registering port event callbacks.
+///
+/// Use [`Port::add_listener_local`] to create this and register callbacks that will be called when events of interest occur.
+/// After adding callbacks, use [`register`](Self::register) to get back a [`PortListener`].
+///
+/// # Examples
+/// ```
+/// # use pipewire::port::Port;
+/// # use pipewire::spa::pod::Pod;
+/// # fn example(port: Port) {
+/// let port_listener = port.add_listener_local()
+///     .info(|info| println!("New port info: {info:?}"))
+///     .param(|seq, param_type, index, next, param| {
+///         println!("New port param: seq {seq}, param type {param_type:?}, index {index}, next {next}, param {:?}",
+///             param.map(Pod::as_bytes));
+///     })
+///     .register();
+/// # }
+/// ```
 pub struct PortListenerLocalBuilder<'a> {
     port: &'a Port,
     cbs: ListenerLocalCallbacks,
@@ -223,6 +254,11 @@ impl fmt::Debug for PortInfo {
     }
 }
 
+/// An owned listener for port events.
+///
+/// This is created by [`PortListenerLocalBuilder`] and will receive events as long as it is alive.
+/// When this gets dropped, the listener gets unregistered and no events will be received by it.
+#[must_use = "Listeners unregister themselves when dropped. Keep the listener alive in order to receive events."]
 pub struct PortListener {
     // Need to stay allocated while the listener is registered
     #[allow(dead_code)]
@@ -241,7 +277,21 @@ impl Drop for PortListener {
 }
 
 impl<'a> PortListenerLocalBuilder<'a> {
-    #[must_use]
+    /// Set the port `info` event callback of the listener.
+    ///
+    /// # Callback parameters
+    /// `info`: Info about the port.
+    ///
+    /// # Examples
+    /// ```
+    /// # use pipewire::port::Port;
+    /// # fn example(port: Port) {
+    /// let port_listener = port.add_listener_local()
+    ///     .info(|info| println!("New port info: {info:?}"))
+    ///     .register();
+    /// # }
+    /// ```
+    #[must_use = "Call `.register()` to start receiving events"]
     pub fn info<F>(mut self, info: F) -> Self
     where
         F: Fn(&PortInfoRef) + 'static,
@@ -250,7 +300,32 @@ impl<'a> PortListenerLocalBuilder<'a> {
         self
     }
 
-    #[must_use]
+    /// Set the port `param` event callback of the listener.
+    ///
+    /// This event is emitted as a result of [`enum_params`](Port::enum_params) or
+    /// [`subscribe_params`](Port::subscribe_params).
+    ///
+    /// # Callback parameters
+    /// `seq`: The sequence number of the request  
+    /// `param_type`: The param type  
+    /// `index`: The param index  
+    /// `next`: The param index of the next param  
+    /// `param`: The param
+    ///
+    /// # Examples
+    /// ```
+    /// # use pipewire::port::Port;
+    /// # use pipewire::spa::pod::Pod;
+    /// # fn example(port: Port) {
+    /// let port_listener = port.add_listener_local()
+    ///     .param(|seq, param_type, index, next, param| {
+    ///         println!("New port param: seq {seq}, param type {param_type:?}, index {index}, next {next}, param {:?}",
+    ///             param.map(Pod::as_bytes));
+    ///     })
+    ///     .register();
+    /// # }
+    /// ```
+    #[must_use = "Call `.register()` to start receiving events"]
     pub fn param<F>(mut self, param: F) -> Self
     where
         F: Fn(i32, spa::param::ParamType, u32, u32, Option<&Pod>) + 'static,
@@ -259,7 +334,7 @@ impl<'a> PortListenerLocalBuilder<'a> {
         self
     }
 
-    #[must_use]
+    /// Subscribe to events and register any provided callbacks.
     pub fn register(self) -> PortListener {
         unsafe extern "C" fn port_events_info(
             data: *mut c_void,

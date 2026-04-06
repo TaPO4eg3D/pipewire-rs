@@ -1,6 +1,10 @@
 // Copyright The pipewire-rs Contributors.
 // SPDX-License-Identifier: MIT
 
+//! Modules implement functionality such as providing new objects or policies.
+//!
+//! This module contains wrappers for [`pw_module`](pw_sys::pw_module) and related items.
+
 use bitflags::bitflags;
 use libc::c_void;
 use std::ops::Deref;
@@ -14,6 +18,7 @@ use crate::{
 };
 use spa::spa_interface_call_method;
 
+/// A [proxy][Proxy] to a [module](self).
 #[derive(Debug)]
 pub struct Module {
     proxy: Proxy,
@@ -42,7 +47,7 @@ impl ProxyT for Module {
 
 impl Module {
     // TODO: add non-local version when we'll bind pw_thread_loop_start()
-    #[must_use]
+    #[must_use = "Use the builder to register event callbacks"]
     pub fn add_listener_local(&self) -> ModuleListenerLocalBuilder<'_> {
         ModuleListenerLocalBuilder {
             module: self,
@@ -57,6 +62,20 @@ struct ListenerLocalCallbacks {
     info: Option<Box<dyn Fn(&ModuleInfoRef)>>,
 }
 
+/// A builder for registering module event callbacks.
+///
+/// Use [`Module::add_listener_local`] to create this and register callbacks that will be called when events of interest occur.
+/// After adding callbacks, use [`register`](Self::register) to get back a [`ModuleListener`].
+///
+/// # Examples
+/// ```
+/// # use pipewire::module::Module;
+/// # fn example(module: Module) {
+/// let module_listener = module.add_listener_local()
+///     .info(|info| println!("New module info: {info:?}"))
+///     .register();
+/// # }
+/// ```
 pub struct ModuleListenerLocalBuilder<'a> {
     module: &'a Module,
     cbs: ListenerLocalCallbacks,
@@ -176,6 +195,11 @@ impl fmt::Debug for ModuleInfo {
     }
 }
 
+/// An owned listener for module events.
+///
+/// This is created by [`ModuleListenerLocalBuilder`] and will receive events as long as it is alive.
+/// When this gets dropped, the listener gets unregistered and no events will be received by it.
+#[must_use = "Listeners unregister themselves when dropped. Keep the listener alive in order to receive events."]
 pub struct ModuleListener {
     // Need to stay allocated while the listener is registered
     #[allow(dead_code)]
@@ -194,7 +218,21 @@ impl Drop for ModuleListener {
 }
 
 impl<'a> ModuleListenerLocalBuilder<'a> {
-    #[must_use]
+    /// Set the module `info` event callback of the listener.
+    ///
+    /// # Callback parameters
+    /// `info`: Info about the module
+    ///
+    /// # Examples
+    /// ```
+    /// # use pipewire::module::Module;
+    /// # fn example(module: Module) {
+    /// let module_listener = module.add_listener_local()
+    ///     .info(|info| println!("New module info: {info:?}"))
+    ///     .register();
+    /// # }
+    /// ```
+    #[must_use = "Call `.register()` to start receiving events"]
     pub fn info<F>(mut self, info: F) -> Self
     where
         F: Fn(&ModuleInfoRef) + 'static,
@@ -203,7 +241,7 @@ impl<'a> ModuleListenerLocalBuilder<'a> {
         self
     }
 
-    #[must_use]
+    /// Subscribe to events and register any provided callbacks.
     pub fn register(self) -> ModuleListener {
         unsafe extern "C" fn module_events_info(
             data: *mut c_void,

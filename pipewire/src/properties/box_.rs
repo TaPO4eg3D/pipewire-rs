@@ -5,7 +5,9 @@ use std::{fmt, mem::ManuallyDrop, ops::Deref, ptr};
 
 use super::Properties;
 
-/// Smart pointer to hold an owned [`Properties`] struct.
+/// Smart pointer providing unique ownership of a PipeWire [properties](super) object.
+///
+/// For an explanation of these, see [Smart pointers to PipeWire objects](crate#smart-pointers-to-pipewire-objects).
 ///
 /// # Examples
 /// Create a `PropertiesBox` struct and access the stored values by key:

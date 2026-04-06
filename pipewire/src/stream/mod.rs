@@ -1,7 +1,9 @@
 // Copyright The pipewire-rs Contributors.
 // SPDX-License-Identifier: MIT
 
-//! Pipewire Stream
+//! Streams are higher-level objects providing a convenient way to send and receive data streams to/from PipeWire.
+//!
+//! This module contains wrappers for [`pw_stream`](pw_sys::pw_stream) and related itmes.
 
 use crate::buffer::Buffer;
 use crate::{error::Error, properties::Properties};
@@ -49,10 +51,14 @@ impl StreamState {
     }
 }
 
-/// A wrapper around the pipewire stream interface. Streams are a higher
-/// level abstraction around nodes in the graph. A stream can be used to send or
-/// receive frames of audio or video data by connecting it to another node.
-/// `D` is the user data, to allow passing extra context to the callbacks.
+/// Transparent wrapper around a [stream](self).
+///
+/// This does not own the underlying object and is usually seen behind a `&` reference.
+///
+/// For owning wrappers that can construct streams, see [`StreamBox`] and [`StreamRc`].
+///
+/// For an explanation of these, see [Smart pointers to PipeWire
+/// objects](crate#smart-pointers-to-pipewire-objects).
 #[repr(transparent)]
 pub struct Stream(pw_sys::pw_stream);
 
@@ -66,7 +72,7 @@ impl Stream {
     }
 
     /// Add a local listener builder
-    #[must_use = "Fluent builder API"]
+    #[must_use = "Use the builder to register event callbacks"]
     pub fn add_local_listener_with_user_data<D>(
         &self,
         user_data: D,
@@ -81,7 +87,7 @@ impl Stream {
     }
 
     /// Add a local listener builder. User data is initialized with its default value
-    #[must_use = "Fluent builder API"]
+    #[must_use = "Use the builder to register event callbacks"]
     pub fn add_local_listener<D: Default>(&self) -> ListenerLocalBuilder<'_, D> {
         self.add_local_listener_with_user_data(Default::default())
     }
@@ -504,14 +510,60 @@ impl<D> ListenerLocalCallbacks<D> {
     }
 }
 
-#[must_use]
+/// A builder for registering stream event callbacks.
+///
+/// Use [`Stream::add_local_listener`] or [`Stream::add_local_listener_with_user_data`] to create this and register callbacks that will be called when events of interest occur.
+/// After adding callbacks, use [`register`](Self::register) to get back a [`StreamListener`].
+///
+/// # Examples
+/// ```
+/// # use pipewire::stream::Stream;
+/// # use pipewire::spa::pod::Pod;
+/// # fn example(stream: Stream) {
+/// let stream_listener = stream.add_local_listener::<()>()
+///     .state_changed(|_stream, _user_data, old, new| println!("Stream state changed from {old:?} to {new:?}"))
+///     .control_info(|_stream, _user_data, id, control| println!("Stream control info: id {id}, control {control:?}"))
+///     .io_changed(|_stream, _user_data, id, area, size| println!("Stream IO change: IO type {id}, area {area:?}, size {size}"))
+///     .param_changed(|_stream, _user_data, id, param| println!("Stream param change: id {id}, param {:?}",
+///         param.map(Pod::as_bytes)))
+///     .add_buffer(|_stream, _user_data, buffer| println!("Stream buffer added {buffer:?}"))
+///     .remove_buffer(|_stream, _user_data, buffer| println!("Stream buffer removed {buffer:?}"))
+///     .process(|stream, _user_data| {
+///         println!("Stream can be processed");
+///         let buf = stream.dequeue_buffer();
+///         // Produce or consume data using the buffer
+///         // The buffer is enqueued back to the stream when it's dropped
+///     })
+///     .drained(|_stream, _user_data| println!("Stream is drained"))
+///     .register();
+/// # }
+/// ```
 pub struct ListenerLocalBuilder<'a, D> {
     stream: &'a Stream,
     callbacks: ListenerLocalCallbacks<D>,
 }
 
 impl<'a, D> ListenerLocalBuilder<'a, D> {
-    /// Set the callback for the `state_changed` event.
+    /// Set the stream `state_changed` event callback of the listener.
+    ///
+    /// This event is emitted when the stream state changes.
+    ///
+    /// # Callback parameters
+    /// `stream`: The stream  
+    /// `data`: User data  
+    /// `old`: Old stream state  
+    /// `new`: New stream state
+    ///
+    /// # Examples
+    /// ```
+    /// # use pipewire::stream::Stream;
+    /// # fn example(stream: Stream) {
+    /// let stream_listener = stream.add_local_listener::<()>()
+    ///     .state_changed(|_stream, _user_data, old, new| println!("Stream state changed from {old:?} to {new:?}"))
+    ///     .register();
+    /// # }
+    /// ```
+    #[must_use = "Call `.register()` to start receiving events"]
     pub fn state_changed<F>(mut self, callback: F) -> Self
     where
         F: FnMut(&Stream, &mut D, StreamState, StreamState) + 'static,
@@ -520,7 +572,26 @@ impl<'a, D> ListenerLocalBuilder<'a, D> {
         self
     }
 
-    /// Set the callback for the `control_info` event.
+    /// Set the stream `control_info` event callback of the listener.
+    ///
+    /// This event is emitted when there is information about a control.
+    ///
+    /// # Callback parameters
+    /// `stream`: The stream  
+    /// `user_data`: User data  
+    /// `id`: Type of the control  
+    /// `control`: The control
+    ///
+    /// # Examples
+    /// ```
+    /// # use pipewire::stream::Stream;
+    /// # fn example(stream: Stream) {
+    /// let stream_listener = stream.add_local_listener::<()>()
+    ///     .control_info(|_stream, _user_data, id, _control| println!("Stream control info {id}"))
+    ///     .register();
+    /// # }
+    /// ```
+    #[must_use = "Call `.register()` to start receiving events"]
     pub fn control_info<F>(mut self, callback: F) -> Self
     where
         F: FnMut(&Stream, &mut D, u32, *const pw_sys::pw_stream_control) + 'static,
@@ -529,7 +600,27 @@ impl<'a, D> ListenerLocalBuilder<'a, D> {
         self
     }
 
-    /// Set the callback for the `io_changed` event.
+    /// Set the stream `io_changed` event callback of the listener.
+    ///
+    /// This event is emitted when IO is changed on the stream.
+    ///
+    /// # Callback parameters
+    /// `stream`: The stream  
+    /// `user_data`: User data  
+    /// `id`: Type of the IO area  
+    /// `area`: The IO area  
+    /// `size`: The IO area size
+    ///
+    /// # Examples
+    /// ```
+    /// # use pipewire::stream::Stream;
+    /// # fn example(stream: Stream) {
+    /// let stream_listener = stream.add_local_listener::<()>()
+    ///     .io_changed(|_stream, _user_data, id, _area, size| println!("Stream IO change: IO type {id}"))
+    ///     .register();
+    /// # }
+    /// ```
+    #[must_use = "Call `.register()` to start receiving events"]
     pub fn io_changed<F>(mut self, callback: F) -> Self
     where
         F: FnMut(&Stream, &mut D, u32, *mut os::raw::c_void, u32) + 'static,
@@ -538,7 +629,28 @@ impl<'a, D> ListenerLocalBuilder<'a, D> {
         self
     }
 
-    /// Set the callback for the `param_changed` event.
+    /// Set the stream `param_changed` event callback of the listener.
+    ///
+    /// This event is emitted when a param is changed.
+    ///
+    /// # Callback parameters
+    /// `stream`: The stream  
+    /// `user_data`: User data  
+    /// `id`: Type of the param  
+    /// `param`: The param
+    ///
+    /// # Examples
+    /// ```
+    /// # use pipewire::stream::Stream;
+    /// # use pipewire::spa::pod::Pod;
+    /// # fn example(stream: Stream) {
+    /// let stream_listener = stream.add_local_listener::<()>()
+    ///     .param_changed(|_stream, _user_data, id, param| println!("Stream param change: id {id}, param {:?}",
+    ///         param.map(Pod::as_bytes)))
+    ///     .register();
+    /// # }
+    /// ```
+    #[must_use = "Call `.register()` to start receiving events"]
     pub fn param_changed<F>(mut self, callback: F) -> Self
     where
         F: FnMut(&Stream, &mut D, u32, Option<&spa::pod::Pod>) + 'static,
@@ -547,7 +659,25 @@ impl<'a, D> ListenerLocalBuilder<'a, D> {
         self
     }
 
-    /// Set the callback for the `add_buffer` event.
+    /// Set the stream `add_buffer` event callback of the listener.
+    ///
+    /// This event is emitted when a buffer was added for this stream.
+    ///
+    /// # Callback parameters
+    /// `stream`: The stream  
+    /// `user_data`: User data  
+    /// `buffer`: The buffer
+    ///
+    /// # Examples
+    /// ```
+    /// # use pipewire::stream::Stream;
+    /// # fn example(stream: Stream) {
+    /// let stream_listener = stream.add_local_listener::<()>()
+    ///     .add_buffer(|_stream, _user_data, buffer| println!("Stream buffer added {buffer:?}"))
+    ///     .register();
+    /// # }
+    /// ```
+    #[must_use = "Call `.register()` to start receiving events"]
     pub fn add_buffer<F>(mut self, callback: F) -> Self
     where
         F: FnMut(&Stream, &mut D, *mut pw_sys::pw_buffer) + 'static,
@@ -556,7 +686,25 @@ impl<'a, D> ListenerLocalBuilder<'a, D> {
         self
     }
 
-    /// Set the callback for the `remove_buffer` event.
+    /// Set the stream `remove_buffer` event callback of the listener.
+    ///
+    /// This event is emitted when a buffer was removed for this stream.
+    ///
+    /// # Callback parameters
+    /// `stream`: The stream  
+    /// `user_data`: User data  
+    /// `buffer`: The buffer
+    ///
+    /// # Examples
+    /// ```
+    /// # use pipewire::stream::Stream;
+    /// # fn example(stream: Stream) {
+    /// let stream_listener = stream.add_local_listener::<()>()
+    ///     .remove_buffer(|_stream, _user_data, buffer| println!("Stream buffer removed {buffer:?}"))
+    ///     .register();
+    /// # }
+    /// ```
+    #[must_use = "Call `.register()` to start receiving events"]
     pub fn remove_buffer<F>(mut self, callback: F) -> Self
     where
         F: FnMut(&Stream, &mut D, *mut pw_sys::pw_buffer) + 'static,
@@ -565,7 +713,31 @@ impl<'a, D> ListenerLocalBuilder<'a, D> {
         self
     }
 
-    /// Set the callback for the `process` event.
+    /// Set the stream `process` event callback of the listener.
+    ///
+    /// This event is emitted when a buffer can be queued (for playback streams) or dequeued (for capture streams).
+    ///
+    /// This is normally called from the mainloop but can also be called directly from the realtime data thread if the user is prepared to deal with this.
+    ///
+    /// # Callback parameters
+    /// `stream`: The stream  
+    /// `user_data`: User data
+    ///
+    /// # Examples
+    /// ```
+    /// # use pipewire::stream::Stream;
+    /// # fn example(stream: Stream) {
+    /// let stream_listener = stream.add_local_listener::<()>()
+    ///     .process(|stream, _user_data| {
+    ///         println!("Stream can be processed");
+    ///         let buf = stream.dequeue_buffer();
+    ///         // Produce or consume data using the buffer
+    ///         // The buffer is enqueued back to the stream when it's dropped
+    ///     })
+    ///     .register();
+    /// # }
+    /// ```
+    #[must_use = "Call `.register()` to start receiving events"]
     pub fn process<F>(mut self, callback: F) -> Self
     where
         F: FnMut(&Stream, &mut D) + 'static,
@@ -574,7 +746,24 @@ impl<'a, D> ListenerLocalBuilder<'a, D> {
         self
     }
 
-    /// Set the callback for the `drained` event.
+    /// Set the stream `drained` event callback of the listener.
+    ///
+    /// This event is emitted when the stream is drained.
+    ///
+    /// # Callback parameters
+    /// `stream`: The stream  
+    /// `user_data`: User data
+    ///
+    /// # Examples
+    /// ```
+    /// # use pipewire::stream::Stream;
+    /// # fn example(stream: Stream) {
+    /// let stream_listener = stream.add_local_listener::<()>()
+    ///     .drained(|_stream, _user_data| println!("Stream is drained"))
+    ///     .register();
+    /// # }
+    /// ```
+    #[must_use = "Call `.register()` to start receiving events"]
     pub fn drained<F>(mut self, callback: F) -> Self
     where
         F: FnMut(&Stream, &mut D) + 'static,
@@ -583,10 +772,7 @@ impl<'a, D> ListenerLocalBuilder<'a, D> {
         self
     }
 
-    //// Register the Callbacks
-    ///
-    /// Stop building the listener and register it on the stream. Returns a
-    /// `StreamListener` handlle that will un-register the listener on drop.
+    /// Subscribe to events and register any provided callbacks.
     pub fn register(self) -> Result<StreamListener<D>, Error> {
         let (events, data) = self.callbacks.into_raw();
         let (listener, data) = unsafe {
@@ -609,6 +795,11 @@ impl<'a, D> ListenerLocalBuilder<'a, D> {
     }
 }
 
+/// An owned listener for stream events.
+///
+/// This is created by [`stream::ListenerLocalBuilder`][ListenerLocalBuilder] and will receive events as long as it is alive.
+/// When this gets dropped, the listener gets unregistered and no events will be received by it.
+#[must_use = "Listeners unregister themselves when dropped. Keep the listener alive in order to receive events."]
 pub struct StreamListener<D> {
     listener: Box<spa_sys::spa_hook>,
     // Need to stay allocated while the listener is registered

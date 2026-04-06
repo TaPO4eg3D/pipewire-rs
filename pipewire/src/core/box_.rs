@@ -7,6 +7,11 @@ use crate::context::Context;
 
 use super::Core;
 
+/// Smart pointer providing unique ownership of a PipeWire [core](super).
+///
+/// For shared ownership, see [`CoreRc`](super::CoreRc).
+///
+/// For an explanation of these, see [Smart pointers to PipeWire objects](crate#smart-pointers-to-pipewire-objects).
 #[derive(Debug)]
 pub struct CoreBox<'c> {
     ptr: std::ptr::NonNull<pw_sys::pw_core>,

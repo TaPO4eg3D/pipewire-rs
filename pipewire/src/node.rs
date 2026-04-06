@@ -1,6 +1,14 @@
 // Copyright The pipewire-rs Contributors.
 // SPDX-License-Identifier: MIT
 
+//! Nodes are media processing elements that consume or produce buffers with data such as audio or
+//! video.
+//!
+//! For receiving and consuming or producting and sending data from/to PipeWire, see
+//! [streams](crate::stream).
+//!
+//! This module contains wrappers for [`pw_node`](pw_sys::pw_node) and related items.
+
 use bitflags::bitflags;
 use libc::c_void;
 use std::ops::Deref;
@@ -14,6 +22,7 @@ use crate::{
 };
 use spa::{pod::Pod, spa_interface_call_method};
 
+/// A [proxy][Proxy] to a [node](self).
 #[derive(Debug)]
 pub struct Node {
     proxy: Proxy,
@@ -21,7 +30,7 @@ pub struct Node {
 
 impl Node {
     // TODO: add non-local version when we'll bind pw_thread_loop_start()
-    #[must_use]
+    #[must_use = "Use the builder to register event callbacks"]
     pub fn add_listener_local(&self) -> NodeListenerLocalBuilder<'_> {
         NodeListenerLocalBuilder {
             node: self,
@@ -31,7 +40,10 @@ impl Node {
 
     /// Subscribe to parameter changes
     ///
-    /// Automatically emit `param` events for the given ids when they are changed
+    /// Automatically emit [`param`](NodeListenerLocalBuilder::param) events for the `ids` when they are changed
+    ///
+    /// # Permissions
+    /// Requires [`X`](crate::permissions::PermissionFlags::X) permissions on the node.
     // FIXME: Return result?
     pub fn subscribe_params(&self, ids: &[spa::param::ParamType]) {
         unsafe {
@@ -48,7 +60,10 @@ impl Node {
     /// Enumerate node parameters
     ///
     /// Start enumeration of node parameters. For each param, a
-    /// param event will be emitted.
+    /// [`param`](NodeListenerLocalBuilder::param) event will be emitted.
+    ///
+    /// # Permissions
+    /// Requires [`X`](crate::permissions::PermissionFlags::X) permissions on the node.
     ///
     /// # Parameters
     /// `seq`: a sequence number to place in the reply \
@@ -74,6 +89,11 @@ impl Node {
         }
     }
 
+    /// Set a parameter on the node.
+    ///
+    /// # Permissions
+    /// Requires [`W`](crate::permissions::PermissionFlags::W) and
+    /// [`X`](crate::permissions::PermissionFlags::X) permissions on the node.
     pub fn set_param(&self, id: spa::param::ParamType, flags: u32, param: &Pod) {
         unsafe {
             spa_interface_call_method!(
@@ -87,6 +107,11 @@ impl Node {
         }
     }
 
+    /// Send a command to the node.
+    ///
+    /// # Permissions
+    /// Requires [`W`](crate::permissions::PermissionFlags::W) and
+    /// [`X`](crate::permissions::PermissionFlags::X) permissions on the node.
     pub fn send_command(&self, command: &spa::node::command::NodeCommand) {
         unsafe {
             spa_interface_call_method!(
@@ -128,6 +153,25 @@ struct ListenerLocalCallbacks {
     param: Option<Box<dyn Fn(i32, spa::param::ParamType, u32, u32, Option<&Pod>)>>,
 }
 
+/// A builder for registering node event callbacks.
+///
+/// Use [`Node::add_listener_local`] to create this and register callbacks that will be called when events of interest occur.
+/// After adding callbacks, use [`register`](Self::register) to get back a [`NodeListener`].
+///
+/// # Examples
+/// ```
+/// # use pipewire::node::Node;
+/// # use pipewire::spa::pod::Pod;
+/// # fn example(node: Node) {
+/// let node_listener = node.add_listener_local()
+///     .info(|info| println!("New node info: {info:?}"))
+///     .param(|seq, param_type, index, next, param| {
+///         println!("New node param: seq {seq}, param type {param_type:?}, index {index}, next {next}, param {:?}",
+///             param.map(Pod::as_bytes));
+///     })
+///     .register();
+/// # }
+/// ```
 pub struct NodeListenerLocalBuilder<'a> {
     node: &'a Node,
     cbs: ListenerLocalCallbacks,
@@ -305,6 +349,11 @@ impl fmt::Debug for NodeInfo {
     }
 }
 
+/// An owned listener for node events.
+///
+/// This is created by [`NodeListenerLocalBuilder`] and will receive events as long as it is alive.
+/// When this gets dropped, the listener gets unregistered and no events will be received by it.
+#[must_use = "Listeners unregister themselves when dropped. Keep the listener alive in order to receive events."]
 pub struct NodeListener {
     // Need to stay allocated while the listener is registered
     #[allow(dead_code)]
@@ -323,7 +372,21 @@ impl Drop for NodeListener {
 }
 
 impl<'a> NodeListenerLocalBuilder<'a> {
-    #[must_use]
+    /// Set the node `info` event callback of the listener.
+    ///
+    /// # Callback parameters
+    /// `info`: Info about the node.
+    ///
+    /// # Examples
+    /// ```
+    /// # use pipewire::node::Node;
+    /// # fn example(node: Node) {
+    /// let node_listener = node.add_listener_local()
+    ///     .info(|info| println!("New node info: {info:?}"))
+    ///     .register();
+    /// # }
+    /// ```
+    #[must_use = "Call `.register()` to start receiving events"]
     pub fn info<F>(mut self, info: F) -> Self
     where
         F: Fn(&NodeInfoRef) + 'static,
@@ -332,7 +395,31 @@ impl<'a> NodeListenerLocalBuilder<'a> {
         self
     }
 
-    #[must_use]
+    /// Set the node `param` event callback of the listener.
+    ///
+    /// This event is emitted as a result of [`enum_params`](Node::enum_params) or
+    /// [`subscribe_params`](Node::subscribe_params).
+    ///
+    /// # Callback parameters
+    /// `seq`: The sequence number of the request  
+    /// `param_type`: The param type  
+    /// `index`: The param index  
+    /// `next`: The param index of the next param  
+    /// `param`: The param
+    /// # Examples
+    /// ```
+    /// # use pipewire::node::Node;
+    /// # use pipewire::spa::pod::Pod;
+    /// # fn example(node: Node) {
+    /// let node_listener = node.add_listener_local()
+    ///     .param(|seq, param_type, index, next, param| {
+    ///         println!("New node param: seq {seq}, param type {param_type:?}, index {index}, next {next}, param {:?}",
+    ///             param.map(Pod::as_bytes));
+    ///     })
+    ///     .register();
+    /// # }
+    /// ```
+    #[must_use = "Call `.register()` to start receiving events"]
     pub fn param<F>(mut self, param: F) -> Self
     where
         F: Fn(i32, spa::param::ParamType, u32, u32, Option<&Pod>) + 'static,
@@ -341,7 +428,7 @@ impl<'a> NodeListenerLocalBuilder<'a> {
         self
     }
 
-    #[must_use]
+    /// Subscribe to events and register any provided callbacks.
     pub fn register(self) -> NodeListener {
         unsafe extern "C" fn node_events_info(
             data: *mut c_void,

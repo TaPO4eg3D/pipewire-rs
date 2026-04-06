@@ -1,6 +1,10 @@
 // Copyright The pipewire-rs Contributors.
 // SPDX-License-Identifier: MIT
 
+//! Wrapper that runs a [loop](crate::loop_) in the current thread.
+//!
+//! This module contains wrappers for [`pw_main_loop`](pw_sys::pw_main_loop) and related items.
+
 use crate::loop_::Loop;
 
 mod box_;
@@ -8,6 +12,14 @@ pub use box_::*;
 mod rc;
 pub use rc::*;
 
+/// Transparent wrapper around a [main loop](self).
+///
+/// This does not own the underlying object and is usually seen behind a `&` reference.
+///
+/// For owning wrappers that can construct main loops, see [`MainLoopBox`] and [`MainLoopRc`].
+///
+/// For an explanation of these, see [Smart pointers to PipeWire
+/// objects](crate#smart-pointers-to-pipewire-objects).
 #[repr(transparent)]
 pub struct MainLoop(pw_sys::pw_main_loop);
 
