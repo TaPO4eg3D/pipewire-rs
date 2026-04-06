@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 //! # Rust bindings for pipewire
-//! `pipewire` is a crate offering a rustic bindings for `libpipewire`, the library for interacting
+//! `pipewire` is a crate offering Rust bindings to `libpipewire`, the library for interacting
 //! with the pipewire server.
 //!
 //! Programs that interact with pipewire usually react to events from the server by registering callbacks
@@ -31,6 +31,7 @@
 //! }
 //! ```
 //!
+//! ## Smart pointers to PipeWire objects
 //! The example above uses [`std::boxed::Box`]-like smart pointers to create the needed objects.
 //! Those boxes use lifetimes to ensure the objects dependencies (e.g. `Core` depends on `MainLoop`)
 //! outlive the object itself.
@@ -53,7 +54,7 @@
 //!     Ok(())
 //! }
 //! ```
-//!
+//! ## Listening for events
 //! Once the needed objects are created, you can start hooking up different kinds of callbacks to
 //! them to react to events, and call methods to change the state of the remote.
 //! ```no_run
@@ -84,8 +85,8 @@
 //! }
 //! ```
 //! Note that registering any callback requires the closure to have the `'static` lifetime, so if you need to capture
-//! any variables, use `move ||` closures, and use `std::rc::Rc`s to access shared variables
-//! and some `std::cell` variant if you need to mutate them.
+//! any variables, use `move ||` closures, and use [`std::rc::Rc`]s to access shared variables
+//! and some [`std::cell`] variant if you need to mutate them.
 //!
 //! Also note that we called `mainloop.run()` at the end.
 //! This will enter the loop, and won't return until we call `mainloop.quit()` from some event.
@@ -129,6 +130,14 @@
 //! we use a [`pipewire::channel`](`crate::channel`) instead.
 //!
 //! See the [`pipewire::channel`](`crate::channel`) module for details.
+//!
+//! # Useful links
+//! For info on more general concepts about PipeWire as well as the C library `libpipewire`, see [PipeWire's
+//! documentation](https://docs.pipewire.org/). Some notable pages are:
+//!  - [The PipeWire overview](https://docs.pipewire.org/page_overview.html)
+//!  - [A short overview of PipeWire's design](https://docs.pipewire.org/page_design.html)
+//!  - [A design reference on the various objects that exist in PipeWire](https://docs.pipewire.org/page_objects_design.html)
+//!  - [The libpipewire overview](https://docs.pipewire.org/page_library.html)
 
 pub mod buffer;
 pub mod channel;
