@@ -115,6 +115,20 @@ impl Clone for PropertiesBox {
     }
 }
 
+impl<K, V> FromIterator<(K, V)> for PropertiesBox
+where
+    K: Into<Vec<u8>>,
+    V: Into<Vec<u8>>,
+{
+    fn from_iter<T: IntoIterator<Item = (K, V)>>(iter: T) -> Self {
+        let mut props = Self::new();
+
+        props.extend(iter);
+
+        props
+    }
+}
+
 impl Drop for PropertiesBox {
     fn drop(&mut self) {
         unsafe { pw_sys::pw_properties_free(self.ptr.as_ptr()) }

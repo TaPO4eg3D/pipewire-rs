@@ -100,6 +100,18 @@ impl fmt::Debug for Properties {
     }
 }
 
+impl<K, V> Extend<(K, V)> for Properties
+where
+    K: Into<Vec<u8>>,
+    V: Into<Vec<u8>>,
+{
+    fn extend<T: IntoIterator<Item = (K, V)>>(&mut self, iter: T) {
+        for (k, v) in iter {
+            self.insert(k, v);
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
