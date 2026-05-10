@@ -51,6 +51,94 @@ impl StreamState {
     }
 }
 
+/// Stream timing information, updated every graph cycle.
+///
+/// Obtained from [`Stream::time()`].
+/// The [`now`](Self::now) field holds the timestamp of the last update;
+/// compare it with `pw_stream_get_nsec()` to interpolate the current position.
+///
+/// All timing values are relative to the stream's rate.
+///
+/// For a detailed description, see [`pw_time`'s documentation](https://docs.pipewire.org/structpw__time.html#details).
+#[repr(transparent)]
+pub struct Time(pw_sys::pw_time);
+
+impl Clone for Time {
+    fn clone(&self) -> Self {
+        Self(pw_sys::pw_time { ..self.0 })
+    }
+}
+
+impl Time {
+    pub fn as_raw(&self) -> &pw_sys::pw_time {
+        &self.0
+    }
+
+    /// The monotonic timestamp (in nanoseconds) of this report.
+    pub fn now(&self) -> i64 {
+        self.0.now
+    }
+
+    /// The rate of `ticks` and `delay`, usually expressed as 1/samplerate.
+    pub fn rate(&self) -> spa::utils::Fraction {
+        self.0.rate
+    }
+
+    /// Monotonically increasing stream position in ticks.
+    pub fn ticks(&self) -> u64 {
+        self.0.ticks
+    }
+
+    /// Delay to device in ticks, including all filters on the path. Can be
+    /// negative.
+    ///
+    /// Convert to seconds using `delay * rate.num / rate.denom`.
+    pub fn delay(&self) -> i64 {
+        self.0.delay
+    }
+
+    /// Total bytes queued in the stream.
+    pub fn queued(&self) -> u64 {
+        self.0.queued
+    }
+
+    /// Extra frames buffered in the resampler. Since PipeWire 0.3.50.
+    #[cfg(feature = "v0_3_50")]
+    pub fn buffered(&self) -> u64 {
+        self.0.buffered
+    }
+
+    /// Number of buffers currently queued. Since PipeWire 0.3.50.
+    #[cfg(feature = "v0_3_50")]
+    pub fn queued_buffers(&self) -> u32 {
+        self.0.queued_buffers
+    }
+
+    /// Number of buffers available to dequeue. Since PipeWire 0.3.50.
+    #[cfg(feature = "v0_3_50")]
+    pub fn avail_buffers(&self) -> u32 {
+        self.0.avail_buffers
+    }
+}
+
+impl Debug for Time {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut s = f.debug_struct("Time");
+        s.field("now", &self.now())
+            .field("rate", &self.rate())
+            .field("ticks", &self.ticks())
+            .field("delay", &self.delay())
+            .field("queued", &self.queued());
+
+        #[cfg(feature = "v0_3_50")]
+        s.field("buffered", &self.buffered())
+            .field("queued_buffers", &self.queued_buffers())
+            .field("avail_buffers", &self.avail_buffers());
+
+        s.finish()
+    }
+}
+
 /// Transparent wrapper around a [stream](self).
 ///
 /// This does not own the underlying object and is usually seen behind a `&` reference.
@@ -279,8 +367,39 @@ impl Stream {
         Ok(())
     }
 
+    /// Query the time on the stream.
+    ///
+    /// The time reported by this function is updated every graph cycle, usually
+    /// from the process callback. Values such as `ticks` and `delay` are
+    /// meaningful when used together with `now`: use `pw_stream_get_nsec()` to
+    /// get the current timestamp and interpolate.
+    ///
+    /// With the `v0_3_50` feature enabled, this uses `pw_stream_get_time_n()`
+    /// which also populates the `buffered`, `queued_buffers`, and
+    /// `avail_buffers` fields.
+    ///
+    /// This function is RT-safe.
+    pub fn time(&self) -> Result<Time, Error> {
+        unsafe {
+            let mut time = mem::MaybeUninit::<pw_sys::pw_time>::zeroed();
+
+            #[cfg(feature = "v0_3_50")]
+            let r = pw_sys::pw_stream_get_time_n(
+                self.as_raw_ptr(),
+                time.as_mut_ptr(),
+                mem::size_of::<pw_sys::pw_time>(),
+            );
+
+            #[cfg(not(feature = "v0_3_50"))]
+            let r = pw_sys::pw_stream_get_time(self.as_raw_ptr(), time.as_mut_ptr());
+
+            SpaResult::from_c(r).into_result()?;
+            Ok(Time(time.assume_init()))
+        }
+    }
+
     // TODO: pw_stream_get_core()
-    // TODO: pw_stream_get_time()
+    // TODO: pw_stream_get_nsec() (since PipeWire 1.1.0, needs v1_1 feature)
 }
 
 type ParamChangedCB<D> = dyn FnMut(&Stream, &mut D, u32, Option<&spa::pod::Pod>);
