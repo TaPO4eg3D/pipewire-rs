@@ -16,16 +16,16 @@ license = "MIT"
 repository = "https://gitlab.freedesktop.org/pipewire/pipewire-rs"
 # When bumping MSRV, don't forget to update it also in .gitlab-ci.yml
 rust-version = "1.80"
-version = "0.9.2"
+version = "0.10.0"
 
 [workspace.dependencies]
-pipewire = { version = "0.9", path = "./pipewire" }
-pipewire-sys = { version = "0.9", path = "./pipewire-sys" }
+pipewire = { version = "0.10", path = "./pipewire" }
+pipewire-sys = { version = "0.10", path = "./pipewire-sys" }
 
 # Aliases
-pw_sys = { package = "pipewire-sys", version = "0.9", path = "./pipewire-sys" }
-spa_sys = { package = "libspa-sys", version = "0.9", path = "./libspa-sys" }
-spa = { package = "libspa", version = "0.9", path = "./libspa" }
+pw_sys = { package = "pipewire-sys", version = "0.10", path = "./pipewire-sys" }
+spa_sys = { package = "libspa-sys", version = "0.10", path = "./libspa-sys" }
+spa = { package = "libspa", version = "0.10", path = "./libspa" }
 
 # External
 libc = "0.2"
