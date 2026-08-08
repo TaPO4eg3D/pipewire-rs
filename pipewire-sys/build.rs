@@ -13,6 +13,9 @@ fn main() {
     // Tell cargo to invalidate the built crate whenever the wrapper changes
     println!("cargo:rerun-if-changed=wrapper.h");
 
+    // Write the bindings to the $OUT_DIR/bindings.rs file.
+    let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
+
     let builder = bindgen::Builder::default()
         .header("wrapper.h")
         // Tell cargo to invalidate the built crate whenever any of the
@@ -28,7 +31,8 @@ fn main() {
         .blocklist_item("spa_.*")
         .raw_line("use spa_sys::*;")
         // Some definitions are missing from the generated bindings without this
-        .clang_macro_fallback();
+        .clang_macro_fallback()
+        .clang_macro_fallback_build_dir(&out_path);
 
     let builder = libpipewire
         .include_paths
@@ -40,8 +44,6 @@ fn main() {
 
     let bindings = builder.generate().expect("Unable to generate bindings");
 
-    // Write the bindings to the $OUT_DIR/bindings.rs file.
-    let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
     bindings
         .write_to_file(out_path.join("bindings.rs"))
         .expect("Couldn't write bindings!");

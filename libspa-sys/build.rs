@@ -38,6 +38,7 @@ fn main() {
         .derive_eq(true)
         // Some definitions are missing from the generated bindings without this
         .clang_macro_fallback()
+        .clang_macro_fallback_build_dir(&out_path)
         // Create callable wrapper functions around SPAs `static inline` functions so they
         // can be called via FFI
         .wrap_static_fns(true)
