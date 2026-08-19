@@ -16,7 +16,7 @@ license = "MIT"
 repository = "https://gitlab.freedesktop.org/pipewire/pipewire-rs"
 # When bumping MSRV, don't forget to update it also in .gitlab-ci.yml
 rust-version = "1.80"
-version = "0.10.0"
+version = "0.10.1"
 
 [workspace.dependencies]
 pipewire = { path = "./pipewire" }
