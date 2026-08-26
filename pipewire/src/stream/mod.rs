@@ -55,7 +55,8 @@ impl StreamState {
 ///
 /// Obtained from [`Stream::time()`].
 /// The [`now`](Self::now) field holds the timestamp of the last update;
-/// compare it with `pw_stream_get_nsec()` to interpolate the current position.
+/// compare it with `Stream::nsec()` (requires the `v1_1_0` feature) to
+/// interpolate the current position.
 ///
 /// All timing values are relative to the stream's rate.
 ///
@@ -398,8 +399,20 @@ impl Stream {
         }
     }
 
+    /// Get the current time in nanoseconds.
+    ///
+    /// This value can be compared with the [`Time::now`] value to calculate
+    /// the elapsed time since the last time report and interpolate updated
+    /// `ticks` and `delay` values, as described in [`Stream::time`].
+    ///
+    /// This function is RT-safe.
+    #[cfg(feature = "v1_1_0")]
+    pub fn nsec(&self) -> u64 {
+        unsafe { pw_sys::pw_stream_get_nsec(self.as_raw_ptr()) }
+    }
+
     // TODO: pw_stream_get_core()
-    // TODO: pw_stream_get_nsec() (since PipeWire 1.1.0, needs v1_1 feature)
+    // TODO: pw_stream_get_data_loop() (since PipeWire 1.1.0, needs v1_1_0 feature)
 }
 
 type ParamChangedCB<D> = dyn FnMut(&Stream, &mut D, u32, Option<&spa::pod::Pod>);
