@@ -328,33 +328,45 @@ impl Loop {
     #[must_use]
     pub fn add_timer<F>(&self, callback: F) -> TimerSource<'_>
     where
-        F: Fn(u64) + 'static,
+        F: for<'a> Fn(&'a TimerSource<'_>, u64) + 'static,
         Self: Sized,
     {
-        unsafe extern "C" fn call_closure<F>(data: *mut c_void, expirations: u64)
-        where
-            F: Fn(u64),
-        {
-            let callback = (data as *mut F).as_ref().unwrap();
-            callback(expirations);
+        unsafe extern "C" fn call_closure(data: *mut c_void, expirations: u64) {
+            let callback = (data as *mut TimerSourceCallback).as_ref().unwrap();
+            let loop_ = Loop(*callback.loop_.as_ptr());
+
+            let timer_source = TimerSource {
+                loop_: &loop_,
+                ptr: ptr::NonNull::new(callback.source).expect("source is NULL"),
+
+                _data: Box::from_raw(data as *mut _),
+            };
+
+            (callback.func)(&timer_source, expirations);
+            std::mem::forget(timer_source);
         }
 
-        let data = Box::into_raw(Box::new(callback));
+        let data = Box::into_raw(Box::new(TimerSourceCallback {
+            func: Box::new(callback),
+            loop_: ptr::NonNull::new(self.as_raw_ptr()).unwrap(),
+            source: ptr::null_mut(),
+        }));
 
-        let (source, data) = unsafe {
+        let (source, mut data) = unsafe {
             let mut iface = self.as_raw().utils.as_ref().unwrap().iface;
 
             let source = spa_interface_call_method!(
                 &mut iface as *mut spa_sys::spa_interface,
                 spa_sys::spa_loop_utils_methods,
                 add_timer,
-                Some(call_closure::<F>),
+                Some(call_closure),
                 data as *mut _
             );
             (source, Box::from_raw(data))
         };
 
         let ptr = ptr::NonNull::new(source).expect("source is NULL");
+        data.source = ptr.as_ptr();
 
         TimerSource {
             ptr,
@@ -548,6 +560,13 @@ impl<'l> Drop for EventSource<'l> {
     }
 }
 
+struct TimerSourceCallback<'l> {
+    func: Box<dyn for<'a> Fn(&'a TimerSource<'l>, u64) + 'static>,
+
+    loop_: ptr::NonNull<pw_sys::pw_loop>,
+    source: *mut spa_sys::spa_source,
+}
+
 /// A source that can be used to have a callback called on a timer.
 ///
 /// This source can be obtained by calling [`add_timer`](`Loop::add_timer`) on a loop, registering a callback to it.
@@ -557,11 +576,12 @@ impl<'l> Drop for EventSource<'l> {
 pub struct TimerSource<'l> {
     ptr: ptr::NonNull<spa_sys::spa_source>,
     loop_: &'l Loop,
+
     // Store data wrapper to prevent leak
-    _data: Box<dyn Fn(u64) + 'static>,
+    _data: Box<TimerSourceCallback<'l>>,
 }
 
-impl<'l> TimerSource<'l> {
+impl<'l, 'b> TimerSource<'l> {
     /// Arm or disarm the timer.
     ///
     /// The timer will be called the next time after the provided `value` duration.
